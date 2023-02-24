@@ -1,8 +1,10 @@
 import os
 import numpy
+import matplotlib.colors as mcolors
+import matplotlib.pyplot as plt
 
 
-def auc(labeled_data):
+def auc(labeled_data, index):
     labeled_data.sort(key=lambda x: x[0])
     #print(labeled_data)
 
@@ -23,7 +25,20 @@ def auc(labeled_data):
     #print(fp_rate)
     #print(tp_rate)
 
-    return 1 - sum(numpy.diff(fp_rate) * (tp_rate[1:] + tp_rate[:-1])) / 2
+    auc_v = 1 - sum(numpy.diff(fp_rate) * (tp_rate[1:] + tp_rate[:-1])) / 2
+
+    plt.title('Receiver Operating Characteristic')
+    plt.plot(tp_rate, fp_rate, label=f'r={index}, AUC = {auc_v:.2f}', color=list(mcolors.TABLEAU_COLORS)[index])
+    plt.legend(loc='lower right')
+    plt.plot([0, 1], [0, 1], 'r--')
+    plt.xlim([0, 1])
+    plt.ylim([0, 1])
+    plt.ylabel('True Positive Rate')
+    plt.xlabel('False Positive Rate')
+
+    if index == 9:
+        plt.savefig(f'roc_curve.png')
+    return auc_v
 
 
 if __name__ == "__main__":
@@ -39,5 +54,5 @@ if __name__ == "__main__":
         labels_file = open("merged.labels", "r")
         data_labels = [int(x) for x in labels_file.read().split()]
 
-        auc_value = auc(list(zip(data_floats, data_labels)))
+        auc_value = auc(list(zip(data_floats, data_labels)), r_val)
         print(f"{r_val}:  {auc_value}")
