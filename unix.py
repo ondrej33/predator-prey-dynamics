@@ -1,13 +1,18 @@
 import os
+import itertools
+from statistics import mean
 from auc import auc
 
-TEST_PACKAGE = 'unm'  # 'cert' or 'unm'
-TEST_NUMBER = '1'  # or 2, 3
+TEST_PACKAGE = 'cert'  # 'cert' or 'unm'
+TEST_NUMBER = '1'  # 1 or 2, 3
 SLIDING_WINDOW = False
-CHUNK_SIZE = 30
+CHUNK_SIZE = 7
+MAX_R = 5
 # -----------------------
-FP_RESULTS = f"results/unix_{CHUNK_SIZE}_{TEST_PACKAGE}{TEST_NUMBER}.txt"
-FP_IMAGE = f"results/unix_{CHUNK_SIZE}_{TEST_PACKAGE}{TEST_NUMBER}.png"
+assert MAX_R <= CHUNK_SIZE, "r !<= n"
+# -----------------------
+FP_RESULTS = f"results/unix_{CHUNK_SIZE}_{TEST_PACKAGE}{TEST_NUMBER}{'_sw' if SLIDING_WINDOW else ''}.txt"
+FP_IMAGE = f"results/unix_{CHUNK_SIZE}_{TEST_PACKAGE}{TEST_NUMBER}{'_sw' if SLIDING_WINDOW else ''}.png"
 FP_TRAIN = f"syscalls/snd-{TEST_PACKAGE}/snd-{TEST_PACKAGE}.train"
 FP_MERGED_TEST = f"syscalls/snd-{TEST_PACKAGE}/snd-{TEST_PACKAGE}.{TEST_NUMBER}.test"
 FP_MERGED_LABELS = f"syscalls/snd-{TEST_PACKAGE}/snd-{TEST_PACKAGE}.{TEST_NUMBER}.labels"
@@ -54,6 +59,7 @@ if __name__ == "__main__":
     # split files into chunks
     train_chunked_lines, _ = split_file_to_chunks(FP_TRAIN, None, SLIDING_WINDOW)
     test_chunked_lines, test_chunked_labels = split_file_to_chunks(FP_MERGED_TEST, FP_MERGED_LABELS, SLIDING_WINDOW)
+    test_chunk_sizes = [len(line) for line in test_chunked_lines]
 
     # save chunked files
     with open(FP_TRAIN_CHUNKED, "w") as f:
@@ -63,7 +69,6 @@ if __name__ == "__main__":
 
     # ========= TRAIN + EVALUATE =========
     aucs = []
-    MAX_R = 5
     for r_val in range(1, MAX_R+1):
         # generate scores
         bash_command = f"java -jar negsel2.jar -l -c -n {CHUNK_SIZE} -r {r_val} -self {FP_TRAIN_CHUNKED} < {FP_TEST_CHUNKED}"
@@ -73,7 +78,15 @@ if __name__ == "__main__":
         # flatten the list
         data_labels = [int(element) for sublist in test_chunked_labels for element in sublist]
 
-        auc_value = auc(list(zip(data_floats, data_labels)), r_val, FP_IMAGE, MAX_R)
+        # merge by sequences by averaging
+        reduced_list = list(map(lambda x: mean(data_floats[x[1]-x[0]:x[1]]), zip(test_chunk_sizes, itertools.accumulate(test_chunk_sizes))))
+        reduced_labels = list(map(lambda x: int(x[0]),test_chunked_labels))
+        # print("number of sequences in test size after merging:", len(reduced_list), "-", len(reduced_labels))
+        # print(list(zip(reduced_list, reduced_labels)))
+        # print(list(zip(data_floats, data_labels)))
+
+        auc_value = auc(list(zip(reduced_list, reduced_labels)), r_val, FP_IMAGE, MAX_R)
+        # auc_value = auc(list(zip(data_floats, data_labels)), r_val, FP_IMAGE, MAX_R)
         aucs.append(str(auc_value))
         print(f"{r_val}:  {auc_value}")
 
