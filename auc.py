@@ -4,7 +4,7 @@ import matplotlib.colors as mcolors
 import matplotlib.pyplot as plt
 
 
-def auc(labeled_data, index):
+def auc(labeled_data, index, image_pth='roc_curve.png', max_r=9):
     labeled_data.sort(key=lambda x: x[0])
     #print(labeled_data)
 
@@ -36,8 +36,8 @@ def auc(labeled_data, index):
     plt.ylabel('True Positive Rate')
     plt.xlabel('False Positive Rate')
 
-    if index == 9:
-        plt.savefig(f'roc_curve.png')
+    if index == max_r:
+        plt.savefig(image_pth)
     return auc_v
 
 
