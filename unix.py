@@ -3,16 +3,18 @@ import itertools
 from statistics import mean
 from auc import auc
 
-TEST_PACKAGE = 'cert'  # 'cert' or 'unm'
+TEST_PACKAGE = 'unm'  # 'cert' or 'unm'
 TEST_NUMBER = '1'  # 1 or 2, 3
 SLIDING_WINDOW = False
-CHUNK_SIZE = 7
+CHUNK_SIZE = 10
 MAX_R = 5
+K_FLAG = False
 # -----------------------
 assert MAX_R <= CHUNK_SIZE, "r !<= n"
 # -----------------------
-FP_RESULTS = f"results/unix_{CHUNK_SIZE}_{TEST_PACKAGE}{TEST_NUMBER}{'_sw' if SLIDING_WINDOW else ''}.txt"
-FP_IMAGE = f"results/unix_{CHUNK_SIZE}_{TEST_PACKAGE}{TEST_NUMBER}{'_sw' if SLIDING_WINDOW else ''}.png"
+FP_ALPHABET = f'syscalls/snd-{TEST_PACKAGE}/snd-{TEST_PACKAGE}.alpha'
+FP_RESULTS = f"results/unix_{CHUNK_SIZE}_{TEST_PACKAGE}{TEST_NUMBER}{'_sw' if SLIDING_WINDOW else ''}{'_k' if K_FLAG else ''}.txt"
+FP_IMAGE = f"results/unix_{CHUNK_SIZE}_{TEST_PACKAGE}{TEST_NUMBER}{'_sw' if SLIDING_WINDOW else ''}{'_k' if K_FLAG else ''}.png"
 FP_TRAIN = f"syscalls/snd-{TEST_PACKAGE}/snd-{TEST_PACKAGE}.train"
 FP_MERGED_TEST = f"syscalls/snd-{TEST_PACKAGE}/snd-{TEST_PACKAGE}.{TEST_NUMBER}.test"
 FP_MERGED_LABELS = f"syscalls/snd-{TEST_PACKAGE}/snd-{TEST_PACKAGE}.{TEST_NUMBER}.labels"
@@ -71,7 +73,7 @@ if __name__ == "__main__":
     aucs = []
     for r_val in range(1, MAX_R+1):
         # generate scores
-        bash_command = f"java -jar negsel2.jar -l -c -n {CHUNK_SIZE} -r {r_val} -self {FP_TRAIN_CHUNKED} < {FP_TEST_CHUNKED}"
+        bash_command = f"java -jar negsel2.jar -alphabet file://{FP_ALPHABET} {'-k' if K_FLAG else ''} -l -c -n {CHUNK_SIZE} -r {r_val} -self {FP_TRAIN_CHUNKED} < {FP_TEST_CHUNKED}"
         data = os.popen(bash_command).read()
         data_floats = [float(x) for x in data.split()]
 
