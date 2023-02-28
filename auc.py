@@ -3,6 +3,8 @@ import numpy
 import matplotlib.colors as mcolors
 import matplotlib.pyplot as plt
 
+from sklearn import metrics
+
 
 def auc(labeled_data, index, image_pth='roc_curve.png', max_r=9):
     labeled_data.sort(key=lambda x: x[0])
@@ -26,6 +28,12 @@ def auc(labeled_data, index, image_pth='roc_curve.png', max_r=9):
     #print(tp_rate)
 
     auc_v = 1 - sum(numpy.diff(fp_rate) * (tp_rate[1:] + tp_rate[:-1])) / 2
+
+    y = labeled_data
+    pred = None
+
+    fp_rate, tp_rate, thresholds = metrics.roc_curve(y, pred, pos_label=2)
+    auc_v = metrics.auc(fp_rate, tp_rate)
 
     plt.title('Receiver Operating Characteristic')
     plt.plot(tp_rate, fp_rate, label=f'r={index}, AUC = {auc_v:.2f}', color=list(mcolors.TABLEAU_COLORS)[index])
