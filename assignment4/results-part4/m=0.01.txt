@@ -2,32 +2,32 @@ TARGET:  'abcdefghijklmno'
 M:  0.01
 K:  2
 
-RUN 1 | iterations: 15, found: True
-RUN 2 | iterations: 17, found: True
-RUN 3 | iterations: 17, found: True
-RUN 4 | iterations: 17, found: True
+RUN 1 | iterations: 19, found: True
+RUN 2 | iterations: 20, found: True
+RUN 3 | iterations: 18, found: True
+RUN 4 | iterations: 20, found: True
 RUN 5 | iterations: 19, found: True
-RUN 6 | iterations: 19, found: True
-RUN 7 | iterations: 18, found: True
-RUN 8 | iterations: 20, found: True
-RUN 9 | iterations: 21, found: True
-RUN 10 | iterations: 19, found: True
-RUN 11 | iterations: 18, found: True
-RUN 12 | iterations: 19, found: True
-RUN 13 | iterations: 17, found: True
-RUN 14 | iterations: 20, found: True
+RUN 6 | iterations: 17, found: True
+RUN 7 | iterations: 20, found: True
+RUN 8 | iterations: 16, found: True
+RUN 9 | iterations: 18, found: True
+RUN 10 | iterations: 16, found: True
+RUN 11 | iterations: 20, found: True
+RUN 12 | iterations: 16, found: True
+RUN 13 | iterations: 18, found: True
+RUN 14 | iterations: 19, found: True
 RUN 15 | iterations: 19, found: True
-RUN 16 | iterations: 19, found: True
+RUN 16 | iterations: 17, found: True
 RUN 17 | iterations: 18, found: True
 RUN 18 | iterations: 18, found: True
 RUN 19 | iterations: 18, found: True
-RUN 20 | iterations: 17, found: True
+RUN 20 | iterations: 19, found: True
 
 ----------OVERALL STATS----------
 
 found: [True, True, True, True, True, True, True, True, True, True, True, True, True, True, True, True, True, True, True, True]
-iterations: [15, 17, 17, 17, 19, 19, 18, 20, 21, 19, 18, 19, 17, 20, 19, 19, 18, 18, 18, 17]
+iterations: [19, 20, 18, 20, 19, 17, 20, 16, 18, 16, 20, 16, 18, 19, 19, 17, 18, 18, 18, 19]
 number of found: 20 (out of 20)
-iterations (if found): [15, 17, 17, 17, 19, 19, 18, 20, 21, 19, 18, 19, 17, 20, 19, 19, 18, 18, 18, 17]
+iterations (if found): [19, 20, 18, 20, 19, 17, 20, 16, 18, 16, 20, 16, 18, 19, 19, 17, 18, 18, 18, 19]
 iterations mean (if found): 18.25
-iterations std (if found): 1.3369741957120937
+iterations std (if found): 1.299038105676658

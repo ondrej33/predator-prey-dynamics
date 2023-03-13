@@ -207,6 +207,7 @@ def run_experiment(
         # add few more bins on sides
         max_iter = max_iter + max_iter // 10
         min_iter = max(0, min_iter - 10)
+        sns.set(rc={'figure.figsize': (12, 8)})
         sns.displot(num_iterations_list, bins=list(range(min_iter, max_iter+10))).figure.savefig("output.png")
 
     return found_list.count(True), num_iter_mean, num_iter_std
@@ -296,8 +297,8 @@ if __name__ == "__main__":
         description='Runs genetic algorithm for string matching',
     )
     # algorithm parameters (make them all tunable, but with default values)
-    parser.add_argument('-m', '--mutation_prob', default=0)
-    parser.add_argument('-k', '--k_tournament', default=5)
+    parser.add_argument('-m', '--mutation_prob', default=0.01)
+    parser.add_argument('-k', '--k_tournament', default=2)
     parser.add_argument('-n', '--n_population', default=1000)
     parser.add_argument('-l', '--length_target', default=15)
     parser.add_argument('-t', '--target', default="abcdefghijklmno")
@@ -319,7 +320,7 @@ if __name__ == "__main__":
     else:
         target = generate_individual(args.allowed_chars, args.target_len)
 
-    """
+    #"""
     run_experiment(
         args.runs_number,
         alphabet,
@@ -330,8 +331,9 @@ if __name__ == "__main__":
         args.g_max,
         debug=True,
     )
-    """
+    #"""
 
+    """
     # update step schedule - start with tiny updates, make larger when hitting certain thresholds
     step_update_scheme = [
         (0, 0.0001),
@@ -347,7 +349,8 @@ if __name__ == "__main__":
         args.n_population,
         args.k_tournament,
         args.g_max,
-        max_m=0.5,
+        max_m=0.4,
         update_scheme=step_update_scheme,
     )
+    """
 

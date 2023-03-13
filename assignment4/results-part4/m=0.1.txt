@@ -2,32 +2,32 @@ TARGET:  'abcdefghijklmno'
 M:  0.1
 K:  2
 
-RUN 1 | iterations: 41, found: True
-RUN 2 | iterations: 38, found: True
-RUN 3 | iterations: 45, found: True
-RUN 4 | iterations: 89, found: True
-RUN 5 | iterations: 131, found: True
-RUN 6 | iterations: 62, found: True
-RUN 7 | iterations: 63, found: True
-RUN 8 | iterations: 44, found: True
-RUN 9 | iterations: 44, found: True
-RUN 10 | iterations: 103, found: True
-RUN 11 | iterations: 33, found: True
-RUN 12 | iterations: 68, found: True
-RUN 13 | iterations: 46, found: True
-RUN 14 | iterations: 94, found: True
-RUN 15 | iterations: 50, found: True
-RUN 16 | iterations: 77, found: True
-RUN 17 | iterations: 109, found: True
-RUN 18 | iterations: 39, found: True
-RUN 19 | iterations: 113, found: True
-RUN 20 | iterations: 87, found: True
+RUN 1 | iterations: 82, found: True
+RUN 2 | iterations: 59, found: True
+RUN 3 | iterations: 55, found: True
+RUN 4 | iterations: 117, found: True
+RUN 5 | iterations: 75, found: True
+RUN 6 | iterations: 95, found: True
+RUN 7 | iterations: 48, found: True
+RUN 8 | iterations: 57, found: True
+RUN 9 | iterations: 42, found: True
+RUN 10 | iterations: 32, found: True
+RUN 11 | iterations: 54, found: True
+RUN 12 | iterations: 65, found: True
+RUN 13 | iterations: 45, found: True
+RUN 14 | iterations: 39, found: True
+RUN 15 | iterations: 61, found: True
+RUN 16 | iterations: 57, found: True
+RUN 17 | iterations: 90, found: True
+RUN 18 | iterations: 54, found: True
+RUN 19 | iterations: 44, found: True
+RUN 20 | iterations: 102, found: True
 
 ----------OVERALL STATS----------
 
 found: [True, True, True, True, True, True, True, True, True, True, True, True, True, True, True, True, True, True, True, True]
-iterations: [41, 38, 45, 89, 131, 62, 63, 44, 44, 103, 33, 68, 46, 94, 50, 77, 109, 39, 113, 87]
+iterations: [82, 59, 55, 117, 75, 95, 48, 57, 42, 32, 54, 65, 45, 39, 61, 57, 90, 54, 44, 102]
 number of found: 20 (out of 20)
-iterations (if found): [41, 38, 45, 89, 131, 62, 63, 44, 44, 103, 33, 68, 46, 94, 50, 77, 109, 39, 113, 87]
-iterations mean (if found): 68.8
-iterations std (if found): 28.88875213642846
+iterations (if found): [82, 59, 55, 117, 75, 95, 48, 57, 42, 32, 54, 65, 45, 39, 61, 57, 90, 54, 44, 102]
+iterations mean (if found): 63.65
+iterations std (if found): 22.244718474280585
