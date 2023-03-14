@@ -7,4 +7,4 @@
 * `EA.ipynb` - containce source code for tasks 4.1 and 4.2.
 * `evolutionary-computing.pdf` - assignment
 * `part4.py` - contains source code for task 4.4.
-* `file-tsp.txt` - data file
+* `file-tsp.txt`, `ulysses16-adjusted.tsp` - data files for TSP
