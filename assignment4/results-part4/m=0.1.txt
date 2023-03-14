@@ -1,0 +1,33 @@
+TARGET:  'abcdefghijklmno'
+M:  0.1
+K:  2
+
+RUN 1 | iterations: 82, found: True
+RUN 2 | iterations: 59, found: True
+RUN 3 | iterations: 55, found: True
+RUN 4 | iterations: 117, found: True
+RUN 5 | iterations: 75, found: True
+RUN 6 | iterations: 95, found: True
+RUN 7 | iterations: 48, found: True
+RUN 8 | iterations: 57, found: True
+RUN 9 | iterations: 42, found: True
+RUN 10 | iterations: 32, found: True
+RUN 11 | iterations: 54, found: True
+RUN 12 | iterations: 65, found: True
+RUN 13 | iterations: 45, found: True
+RUN 14 | iterations: 39, found: True
+RUN 15 | iterations: 61, found: True
+RUN 16 | iterations: 57, found: True
+RUN 17 | iterations: 90, found: True
+RUN 18 | iterations: 54, found: True
+RUN 19 | iterations: 44, found: True
+RUN 20 | iterations: 102, found: True
+
+----------OVERALL STATS----------
+
+found: [True, True, True, True, True, True, True, True, True, True, True, True, True, True, True, True, True, True, True, True]
+iterations: [82, 59, 55, 117, 75, 95, 48, 57, 42, 32, 54, 65, 45, 39, 61, 57, 90, 54, 44, 102]
+number of found: 20 (out of 20)
+iterations (if found): [82, 59, 55, 117, 75, 95, 48, 57, 42, 32, 54, 65, 45, 39, 61, 57, 90, 54, 44, 102]
+iterations mean (if found): 63.65
+iterations std (if found): 22.244718474280585
