@@ -4,6 +4,7 @@ import seaborn as sns
 import numpy as np
 import random
 import string
+import pandas as pd
 
 
 def generate_individual(allowed_chars, target_len):
@@ -284,9 +285,39 @@ def run_experiments_with_different_m(
     print(map_m_to_results)
     print(f"BEST: M={m_with_best_mean[0]}, mean={m_with_best_mean[1]}, std={m_with_best_mean[2]}")
 
-    # TODO: make a plot
 
-    # TODO: find best value
+def make_a_plot():
+    """Use pre-computed values to make a plot. Pre-computed values are used because of the computation length"""
+
+    m_vals_k5 = [0.0000, 0.0001, 0.0002, 0.0003, 0.0004, 0.0005, 0.0006, 0.0007, 0.0008, 0.0009, 0.0010, 0.0020, 0.0030, 0.0040, 0.0050, 0.0060, 0.0070, 0.0080, 0.0090, 0.0100, 0.0200, 0.0300, 0.0400, 0.0500, 0.0600, 0.0700, 0.0800, 0.0900, 0.1000, 0.1200, 0.1400, 0.1600, 0.1800, 0.2000, 0.2200]
+
+    # values for K=2
+    mean_vals_k2 = [17.70, 17.40, 17.90, 17.55, 18.25, 18.00, 17.50, 17.85, 17.85, 17.65, 17.95, 17.85, 18.00, 18.30, 18.10, 18.15, 18.10, 18.65, 18.00, 18.65, 20.05, 20.55, 21.05, 23.85, 25.55, 29.00, 34.20, 41.80, 71.15, 191.20]
+    std_vals_k2 = [1.00, 1.07, 0.89, 1.32, 0.99, 1.22, 1.12, 1.06, 1.28, 1.24, 1.47, 1.01, 1.22, 1.19, 1.30, 1.06, 1.26, 1.28, 1.52, 1.15, 1.66, 1.86, 2.06, 1.65, 2.06, 3.59, 5.78, 6.59, 23.90, 203.60]
+
+    # values for K=5
+    mean_vals_k5 = [10.10, 10.20, 9.85, 10.25, 10.00, 10.50, 10.30, 10.25, 10.25, 10.10, 10.20, 10.35, 10.00, 10.30, 10.40, 10.30, 9.95, 10.20, 10.55, 10.45, 10.75, 11.05, 11.05, 11.45, 11.30, 12.40, 12.75, 12.75, 13.25, 14.10, 16.35, 19.85, 25.40, 50.05, 271.85]
+    std_vals_k5 = [0.77, 0.40, 0.79, 0.77, 0.84, 0.67, 0.90, 0.70, 0.70, 0.77, 0.68, 0.65, 0.84, 0.78, 0.66, 0.64, 0.74, 0.87, 1.12, 1.40, 0.89, 0.67, 1.24, 1.12, 1.00, 0.86, 1.09, 1.34, 1.22, 1.48, 1.88, 3.07, 5.79, 21.96, 184.14]
+
+    mean_frame = pd.DataFrame({
+        "M": m_vals_k5,
+        "Mean generations for K = 2": [(mean_vals_k2[i] if i < len(mean_vals_k2) else None) for i in range(len(m_vals_k5))],
+        "Mean generations for K = 5": mean_vals_k5,
+    })
+
+    std_frame = pd.DataFrame({
+        "M": m_vals_k5,
+        "Std of generations n. for K = 2": [(std_vals_k2[i] if i < len(std_vals_k2) else None) for i in range(len(m_vals_k5))],
+        "Std of generations n. for K = 5": std_vals_k5,
+    })
+
+    # create scatterplot with log scale on y-axis
+    sns.set(rc={'figure.figsize': (12, 8)})
+    p = sns.lineplot(x="M", y="value", hue="variable", data=pd.melt(std_frame, ['M']))
+
+    import matplotlib.pyplot as plt
+    plt.xscale('log')
+    p.figure.savefig("output.png")
 
 
 if __name__ == "__main__":
@@ -320,7 +351,8 @@ if __name__ == "__main__":
     else:
         target = generate_individual(args.allowed_chars, args.target_len)
 
-    #"""
+    # UNCOMMENT this for experiments with fixed M
+    """
     run_experiment(
         args.runs_number,
         alphabet,
@@ -331,8 +363,9 @@ if __name__ == "__main__":
         args.g_max,
         debug=True,
     )
-    #"""
+    """
 
+    # UNCOMMENT this for experiments with M-search
     """
     # update step schedule - start with tiny updates, make larger when hitting certain thresholds
     step_update_scheme = [
@@ -354,3 +387,7 @@ if __name__ == "__main__":
     )
     """
 
+    # UNCOMMENT this for plotting M-search
+    """
+    make_a_plot()
+    """
