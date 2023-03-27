@@ -30,28 +30,47 @@ canvas.height = HEIGHT;
 /** Create an instance of Path object */
 var path = new Path();
 
+var scale_factor = 300;
+
 /** Set path radius */
-path.radius = 30;
+path.radius = 0.4 * scale_factor;
+path.radius_horizontal = 0.4 * scale_factor;
+path.radius_vertical = 0.6 * scale_factor;
 
 /** Set path offset */
 var offset = 60;
+
 
 /** Define path points */
 function setPoints() {
   'use strict';
 
+  // ORIGIAL PATH
+  // path.addPoint(offset, offset);
+  // path.addPoint(offset + 100, offset);
+  // path.addPoint(offset + 100, offset + 100);
+  // path.addPoint(WIDTH - offset - 100, offset + 100);
+  // path.addPoint(WIDTH - offset - 100, offset);
+  // path.addPoint(WIDTH - offset, offset);
+  // path.addPoint(WIDTH - offset, offset + 200);
+  // path.addPoint(WIDTH - offset - 500, offset + 200);
+  // path.addPoint(WIDTH - offset - 500, offset + 300);
+  // path.addPoint(WIDTH - offset, offset + 300);
+  // path.addPoint(WIDTH - offset, HEIGHT - offset);
+  // path.addPoint(offset, HEIGHT - offset);
+  // path.addPoint(offset, offset);
+
+  // CIRCULAR PATH
+  // path.addPoint(offset, offset);
+  // path.addPoint(WIDTH - offset, offset);
+  // path.addPoint(WIDTH - offset, HEIGHT - offset);
+  // path.addPoint(offset, HEIGHT - offset);
+  // path.addPoint(offset, offset);
+
   path.addPoint(offset, offset);
-  path.addPoint(offset + 100, offset);
-  path.addPoint(offset + 100, offset + 100);
-  path.addPoint(WIDTH - offset - 100, offset + 100);
-  path.addPoint(WIDTH - offset - 100, offset);
-  path.addPoint(WIDTH - offset, offset);
-  path.addPoint(WIDTH - offset, offset + 200);
-  path.addPoint(WIDTH - offset - 500, offset + 200);
-  path.addPoint(WIDTH - offset - 500, offset + 300);
-  path.addPoint(WIDTH - offset, offset + 300);
-  path.addPoint(WIDTH - offset, HEIGHT - offset);
-  path.addPoint(offset, HEIGHT - offset);
+  path.addPoint(offset + 4 * scale_factor, offset);
+  path.addPoint(offset + 4 * scale_factor, offset + 2.9 * scale_factor);
+  path.addPoint(offset, offset + 2.9 * scale_factor);
   path.addPoint(offset, offset);
 }
 

@@ -13,6 +13,8 @@ var Path = function() {
 
   this.points = [];
   this.radius = 0;
+  this.radius_vertical = 0;
+  this.radius_horizontal = 0;
 
   /**
    * Add a point to path
@@ -41,12 +43,36 @@ var Path = function() {
     ctx.strokeStyle = '#e7e7e7';
     ctx.lineWidth = this.radius * 2;
 
-    ctx.beginPath();
-
-    for (var i = 0; i < this.points.length; i++) {
-      ctx.lineTo(this.points[i][0], this.points[i][1]);
-    }
+    ctx.beginPath();  
+    ctx.lineWidth = this.radius;
+    ctx.moveTo(this.points[0][0], this.points[0][1]);
+    ctx.lineWidth = this.radius;
+    ctx.lineTo(this.points[1][0], this.points[1][1]);
+    // ctx.stroke();
+    ctx.lineWidth = this.radius * 2;
+    ctx.lineTo(this.points[2][0], this.points[2][1]);
+    ctx.stroke();
+    ctx.lineWidth = this.radius;
+    ctx.lineTo(this.points[3][0], this.points[3][1]);
+    // ctx.lineWidth = this.radius;
+    //     ctx.lineTo(this.points[1][0], this.points[1][1]);
+    // ctx.lineTo(this.points[2][0], this.points[2][1]);
+    // for (var i = 0; i < this.points.length; i++) {
+    //   ctx.lineTo(this.points[i][0], this.points[i][1]);
+    // }
     ctx.closePath();
+
+    // ctx.beginPath();
+    // ctx.lineTo(this.points[1][0], this.points[1][1]);
+    // ctx.lineTo(this.points[2][0], this.points[2][1]);
+    // ctx.closePath();
+
+    // ctx.lineWidth = this.radius_horizontal * 2;
+    // ctx.beginPath();
+    // // for (var i = 0; i < this.points.length; i++) {
+    // //   ctx.lineTo(this.points[i][0], this.points[i][1]);
+    // // }
+    // ctx.closePath();
 
     ctx.stroke();
   };

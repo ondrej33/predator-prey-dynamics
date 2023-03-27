@@ -46,6 +46,7 @@ var Vehicle = function (location, mass) {
   this.radius = this.mass * 2;
   this.acceleration = vec2.create();
   this.velocity = vec2.fromValues(this.maxspeed, 0);
+  // this.velocity = vec2.fromValues(0, this.maxspeed);
   this.bouncesNum = 0;
   this.isBouncing = false;
 
@@ -61,6 +62,10 @@ var Vehicle = function (location, mass) {
   this.applyBehaviors = function (vehicles, path) {
     var f = this.follow(path);
     var s = this.separate(vehicles);
+    // var d = this.direction()
+    // var d = vec2.create()
+    // d.set([0.1,0.1]);
+    // var d = this.clockwise(vehicles, path);
 
     /** Increase vehicle's max speed, until it reached value of 3, if it bounced more than 300 times */
     if (this.bouncesNum >= 300 && this.bouncesNum % 100 === 0) {
@@ -72,15 +77,27 @@ var Vehicle = function (location, mass) {
     /** Scale up forces to produce stronger impact */
     vec2.scale(f, f, 2);
     vec2.scale(s, s, 4);
+    // vec2.scale(d, d, 4);
 
     /** Calculate the average force */
     var forces = vec2.add(vec2.create(), f, s);
+    // var forces = vec2.add(vec2.create(), forces, d);
+
+    // console.log(f, s, forces, d);
 
     vec2.scale(forces, forces, 1/this.mass);
 
     /** Apply force */
     this.applyForce(forces);
   };
+
+  // this.clockwise(vehicles, path) {
+  //   force = vec2.create();
+
+
+
+  //   return force;
+  // }
 
   /**
    * Apply force on the vehicle
@@ -135,11 +152,13 @@ var Vehicle = function (location, mass) {
     var worldRecord = 1000000; // Will be updated with shortest distance to path. Start with a very high value.
 
     /** Loop through each point of the path */
-    for (var i = 0, len = path.points.length; i < len; i++) {
+    // for (var i = 0, len = path.points.length; i < len; i++) {
+    for (var i = path.points.length - 1, len = 0; i >= len; i--) {
 
       /** Get current and next point of the path */
       a.set(path.points[i]);
-      b.set(path.points[(i + 1) % path.points.length]);
+      // b.set(path.points[(i + 1) % path.points.length]);
+      b.set(path.points[(i === 0) ? path.points.length - 1 : (i - 1)]);
 
       /** Calculate a normal point */
       var normalPoint = this.getNormalPoint(predictLoc, a, b);
@@ -239,7 +258,7 @@ var Vehicle = function (location, mass) {
     vec2.add(this.location, this.location, this.velocity);
 
     accelerationVec.set([0, 0]);
-    
+
 
     this.acceleration = accelerationVec;
   };
