@@ -1,5 +1,5 @@
 let Scene = {
-  w : 800, h : 600, swarm : [],
+  w : 1000, h : 800, swarm : [],
 
   // get neighbors up to certain distance
   neighbours : function(x) {
@@ -21,40 +21,140 @@ let Scene = {
   }
 }
 
+let px_offset = 200
+let m_to_px = 100
+
 // Object of the racetrack, holds points of the inner + outer edge, and mid point
 let racetrack = {
-  // TODO: precompute and generate real values (same amount for both)
-  inner: [[200, 200], [600, 200], [600, 400], [200, 400]],
-  outer: [[100, 100], [700, 100], [700, 500], [100, 500]],
+  outer: [[px_offset, px_offset],
+          [px_offset + 6.4*m_to_px, px_offset],
+          
+          [px_offset + 6.4*m_to_px + 0.3*m_to_px, px_offset + 0.1*m_to_px],
+          [px_offset + 6.4*m_to_px + 0.5*m_to_px, px_offset + 0.25*m_to_px],
+          [px_offset + 6.4*m_to_px + 0.8*m_to_px, px_offset + 0.5*m_to_px],
+          [px_offset + 6.4*m_to_px + 0.9*m_to_px, px_offset + 0.7*m_to_px],
+          [px_offset + 6.4*m_to_px + 1*m_to_px, px_offset + 0.9*m_to_px],
+          [px_offset + 6.4*m_to_px + 1.1*m_to_px, px_offset + 1.3*m_to_px],
+          [px_offset + 6.4*m_to_px + 1.2*m_to_px, px_offset + 1.9*m_to_px],
+          [px_offset + 6.4*m_to_px + 1.2*m_to_px, px_offset + 2.5*m_to_px],
+          [px_offset + 6.4*m_to_px + 1.2*m_to_px, px_offset + 2.8*m_to_px],
+          [px_offset + 6.4*m_to_px + 1.1*m_to_px, px_offset + 3.4*m_to_px],
+          [px_offset + 6.4*m_to_px + 1*m_to_px, px_offset + 3.8*m_to_px],
+          [px_offset + 6.4*m_to_px + 0.9*m_to_px, px_offset + 4*m_to_px],
+          [px_offset + 6.4*m_to_px + 0.8*m_to_px, px_offset + 4.2*m_to_px],
+          [px_offset + 6.4*m_to_px + 0.5*m_to_px, px_offset + 4.4*m_to_px],
+          [px_offset + 6.4*m_to_px + 0.3*m_to_px, px_offset + 4.5*m_to_px],
+          
+          [px_offset + 6.4*m_to_px, px_offset + 4.5*m_to_px],
+          [px_offset, px_offset + 4.5*m_to_px],
+         
+         [px_offset - 0.3*m_to_px, px_offset + 4.5*m_to_px],
+          [px_offset - 0.5*m_to_px, px_offset + 4.4*m_to_px],
+          [px_offset - 0.8*m_to_px, px_offset + 4.2*m_to_px],
+          [px_offset - 0.9*m_to_px, px_offset + 4*m_to_px],
+          [px_offset - 1*m_to_px, px_offset + 3.8*m_to_px],
+          [px_offset - 1.1*m_to_px, px_offset + 3.4*m_to_px],
+          [px_offset - 1.2*m_to_px, px_offset + 2.8*m_to_px],
+          [px_offset - 1.2*m_to_px, px_offset + 2.5*m_to_px],
+          [px_offset - 1.2*m_to_px, px_offset + 1.9*m_to_px],
+          [px_offset - 1.1*m_to_px, px_offset + 1.3*m_to_px],
+          [px_offset - 1*m_to_px, px_offset + 0.9*m_to_px],
+          [px_offset - 0.9*m_to_px, px_offset + 0.7*m_to_px],
+          [px_offset - 0.8*m_to_px, px_offset + 0.5*m_to_px],
+          [px_offset - 0.5*m_to_px, px_offset + 0.25*m_to_px],
+          [px_offset - 0.3*m_to_px, px_offset + 0.1*m_to_px],
+          
+         ],
+  inner: [[px_offset +1.2*m_to_px, px_offset + 0.8*m_to_px],
+          [px_offset +5.2*m_to_px, px_offset + 0.8*m_to_px],
+          
+          [px_offset +5.2*m_to_px + 0.3*m_to_px, px_offset +0.8*m_to_px + 0.64* 0.1*m_to_px],
+          [px_offset +5.2*m_to_px + 0.5*m_to_px, px_offset +0.8*m_to_px + 0.64* 0.25*m_to_px],
+          [px_offset +5.2*m_to_px + 0.8*m_to_px, px_offset +0.8*m_to_px + 0.64* 0.5*m_to_px],
+          [px_offset +5.2*m_to_px + 0.9*m_to_px, px_offset +0.8*m_to_px + 0.64* 0.7*m_to_px],
+          [px_offset +5.2*m_to_px + 1*m_to_px, px_offset +0.8*m_to_px + 0.64* 0.9*m_to_px],
+          [px_offset +5.2*m_to_px + 1.1*m_to_px, px_offset +0.8*m_to_px + 0.64* 1.3*m_to_px],
+          [px_offset +5.2*m_to_px + 1.2*m_to_px, px_offset +0.8*m_to_px + 0.64* 1.9*m_to_px],
+          [px_offset +5.2*m_to_px + 1.2*m_to_px, px_offset +0.8*m_to_px + 0.64* 2.5*m_to_px],
+          [px_offset +5.2*m_to_px + 1.2*m_to_px, px_offset +0.8*m_to_px + 0.64* 2.8*m_to_px],
+          [px_offset +5.2*m_to_px + 1.1*m_to_px, px_offset +0.8*m_to_px + 0.64* 3.4*m_to_px],
+          [px_offset +5.2*m_to_px + 1*m_to_px, px_offset +0.8*m_to_px + 0.64* 3.8*m_to_px],
+          [px_offset +5.2*m_to_px + 0.9*m_to_px, px_offset +0.8*m_to_px + 0.64* 4*m_to_px],
+          [px_offset +5.2*m_to_px + 0.8*m_to_px, px_offset +0.8*m_to_px + 0.64* 4.2*m_to_px],
+          [px_offset +5.2*m_to_px + 0.5*m_to_px, px_offset +0.8*m_to_px + 0.64* 4.4*m_to_px],
+          [px_offset +5.2*m_to_px + 0.3*m_to_px, px_offset +0.8*m_to_px + 0.64* 4.5*m_to_px],
+          
+          [px_offset +5.2*m_to_px, px_offset + 3.7*m_to_px],
+          [px_offset +1.2*m_to_px, px_offset + 3.7*m_to_px],
+          
+          
+          [px_offset + 1.2*m_to_px - 0.3*m_to_px, px_offset +0.8*m_to_px + 0.64* 4.5*m_to_px],
+          [px_offset + 1.2*m_to_px - 0.5*m_to_px, px_offset +0.8*m_to_px + 0.64* 4.4*m_to_px],
+          [px_offset + 1.2*m_to_px - 0.8*m_to_px, px_offset +0.8*m_to_px + 0.64* 4.2*m_to_px],
+          [px_offset + 1.2*m_to_px - 0.9*m_to_px, px_offset +0.8*m_to_px + 0.64* 4*m_to_px],
+          [px_offset + 1.2*m_to_px - 1*m_to_px, px_offset +0.8*m_to_px + 0.64* 3.8*m_to_px],
+          [px_offset + 1.2*m_to_px - 1.1*m_to_px, px_offset +0.8*m_to_px + 0.64* 3.4*m_to_px],
+          [px_offset + 1.2*m_to_px - 1.2*m_to_px, px_offset +0.8*m_to_px + 0.64* 2.8*m_to_px],
+          [px_offset + 1.2*m_to_px - 1.2*m_to_px, px_offset +0.8*m_to_px + 0.64* 2.5*m_to_px],
+          [px_offset + 1.2*m_to_px - 1.2*m_to_px, px_offset +0.8*m_to_px + 0.64* 1.9*m_to_px],
+          [px_offset + 1.2*m_to_px - 1.1*m_to_px, px_offset +0.8*m_to_px + 0.64* 1.3*m_to_px],
+          [px_offset + 1.2*m_to_px - 1*m_to_px, px_offset +0.8*m_to_px + 0.64* 0.9*m_to_px],
+          [px_offset + 1.2*m_to_px - 0.9*m_to_px, px_offset +0.8*m_to_px + 0.64* 0.7*m_to_px],
+          [px_offset + 1.2*m_to_px - 0.8*m_to_px, px_offset +0.8*m_to_px + 0.64* 0.5*m_to_px],
+          [px_offset + 1.2*m_to_px - 0.5*m_to_px, px_offset +0.8*m_to_px + 0.64* 0.25*m_to_px],
+          [px_offset + 1.2*m_to_px - 0.3*m_to_px, px_offset +0.8*m_to_px + 0.64* 0.1*m_to_px],
+         ],
   middle: [Scene.w / 2, Scene.h / 2],
 
   // check if point is inside of inner boundary
-  is_in : function(x, y) {
-    // TODO: implement using real shape
-    return (x > 200 && x < 600 && y > 200 && y < 400)
+  is_in: function(x, y) {
+    let boundary = this.inner;
+    let isInside = false;
+    let i, j = boundary.length - 1;
+
+    for (i = 0; i < boundary.length; i++) {
+      if (((boundary[i][1] > y) !== (boundary[j][1] > y)) &&
+          (x < (boundary[j][0] - boundary[i][0]) * (y - boundary[i][1]) / (boundary[j][1] - boundary[i][1]) + boundary[i][0])) {
+        isInside = !isInside;
+      }
+      j = i;
+    }
+
+    return isInside;
   },
 
   // check if point is outside of outer boundary
-  is_out : function(x, y) {
-    // TODO: implement using real shape
-    return (x < 100 || x > 700 || y < 100 || y > 500)
+  is_out: function(x, y) {
+    let boundary = this.outer;
+    let isInside = false;
+    let i, j = boundary.length - 1;
+
+    for (i = 0; i < boundary.length; i++) {
+      if (((boundary[i][1] > y) !== (boundary[j][1] > y)) &&
+          (x < (boundary[j][0] - boundary[i][0]) * (y - boundary[i][1]) / (boundary[j][1] - boundary[i][1]) + boundary[i][0])) {
+        isInside = !isInside;
+      }
+      j = i;
+    }
+
+    return !isInside;
   },
 
+  
   // need to get some kind of clockwise direction for points in the track
   // -> use several intermediate points inside of track to get directions
   // function assumes that the point x,y is inside of track
-  get_direction_checkpoint : function(x, y) {
-    // TODO: implement using real shape and better values
-    if (x < 200 && y < 400) {
-      return [200, 150]
-    } else if (x < 600 && y > 400) {
-      return [150, 400]
-    } else if (x > 600 && y > 200) {
-      return [600, 450]
-    } else if (x >200 && y < 200) {
-      return [650, 200]
-    }
-  },
+    get_direction_checkpoint : function(x,y) { // TODO FIXME
+    if (x < px_offset +1.2*m_to_px) {
+      return [px_offset +1.2*m_to_px, px_offset + 0.8*m_to_px] // TOP LEFT
+    } else if (y < px_offset + 0.8*m_to_px && x < px_offset +5.2*m_to_px) {
+          return [px_offset +5.2*m_to_px, px_offset + 0.8*m_to_px] // TOP RIGHT    
+     } else if(x > px_offset +5.2*m_to_px) {
+       return [px_offset +5.2*m_to_px, px_offset + 3.7*m_to_px] // BOTTOM RIGHT
+     } else if (y > px_offset + 3.7*m_to_px) {
+       return [px_offset +1.2*m_to_px, px_offset + 3.7*m_to_px] // BOTTOM LEFT
+      }
+  }
 
 }
 
@@ -159,7 +259,7 @@ function draw() {
   let i = 0
   for (let p of Scene.swarm) {
     // TODO: update logging depending on needs
-    console.log(i, p.pos.x, p.pos.y)
+    // console.log(i, p.pos.x, p.pos.y)
     p.step()
     p.draw()
     i++
@@ -207,3 +307,4 @@ function display_racetrack() {
   ctx.lineJoin = original_lineJoin;
   ctx.lineCap = original_lineCap;
 };
+
