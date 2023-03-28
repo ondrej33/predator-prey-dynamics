@@ -21,14 +21,17 @@ let Scene = {
   }
 }
 
+// offsets and scale for racetrack
 let px_offset = 200
 let m_to_px = 100
 
 // Object of the racetrack, holds points of the inner + outer edge, and mid point
 let racetrack = {
+  // TODO: check values? 
+  // boundaries - outer and inner
   outer: [[px_offset, px_offset],
           [px_offset + 6.4*m_to_px, px_offset],
-          
+
           [px_offset + 6.4*m_to_px + 0.3*m_to_px, px_offset + 0.1*m_to_px],
           [px_offset + 6.4*m_to_px + 0.5*m_to_px, px_offset + 0.25*m_to_px],
           [px_offset + 6.4*m_to_px + 0.8*m_to_px, px_offset + 0.5*m_to_px],
@@ -44,10 +47,10 @@ let racetrack = {
           [px_offset + 6.4*m_to_px + 0.8*m_to_px, px_offset + 4.2*m_to_px],
           [px_offset + 6.4*m_to_px + 0.5*m_to_px, px_offset + 4.4*m_to_px],
           [px_offset + 6.4*m_to_px + 0.3*m_to_px, px_offset + 4.5*m_to_px],
-          
+
           [px_offset + 6.4*m_to_px, px_offset + 4.5*m_to_px],
           [px_offset, px_offset + 4.5*m_to_px],
-         
+
          [px_offset - 0.3*m_to_px, px_offset + 4.5*m_to_px],
           [px_offset - 0.5*m_to_px, px_offset + 4.4*m_to_px],
           [px_offset - 0.8*m_to_px, px_offset + 4.2*m_to_px],
@@ -63,11 +66,11 @@ let racetrack = {
           [px_offset - 0.8*m_to_px, px_offset + 0.5*m_to_px],
           [px_offset - 0.5*m_to_px, px_offset + 0.25*m_to_px],
           [px_offset - 0.3*m_to_px, px_offset + 0.1*m_to_px],
-          
+
          ],
   inner: [[px_offset +1.2*m_to_px, px_offset + 0.8*m_to_px],
           [px_offset +5.2*m_to_px, px_offset + 0.8*m_to_px],
-          
+
           [px_offset +5.2*m_to_px + 0.3*m_to_px, px_offset +0.8*m_to_px + 0.64* 0.1*m_to_px],
           [px_offset +5.2*m_to_px + 0.5*m_to_px, px_offset +0.8*m_to_px + 0.64* 0.25*m_to_px],
           [px_offset +5.2*m_to_px + 0.8*m_to_px, px_offset +0.8*m_to_px + 0.64* 0.5*m_to_px],
@@ -83,11 +86,11 @@ let racetrack = {
           [px_offset +5.2*m_to_px + 0.8*m_to_px, px_offset +0.8*m_to_px + 0.64* 4.2*m_to_px],
           [px_offset +5.2*m_to_px + 0.5*m_to_px, px_offset +0.8*m_to_px + 0.64* 4.4*m_to_px],
           [px_offset +5.2*m_to_px + 0.3*m_to_px, px_offset +0.8*m_to_px + 0.64* 4.5*m_to_px],
-          
+
           [px_offset +5.2*m_to_px, px_offset + 3.7*m_to_px],
           [px_offset +1.2*m_to_px, px_offset + 3.7*m_to_px],
-          
-          
+
+
           [px_offset + 1.2*m_to_px - 0.3*m_to_px, px_offset +0.8*m_to_px + 0.64* 4.5*m_to_px],
           [px_offset + 1.2*m_to_px - 0.5*m_to_px, px_offset +0.8*m_to_px + 0.64* 4.4*m_to_px],
           [px_offset + 1.2*m_to_px - 0.8*m_to_px, px_offset +0.8*m_to_px + 0.64* 4.2*m_to_px],
@@ -140,28 +143,105 @@ let racetrack = {
     return !isInside;
   },
 
-  
   // need to get some kind of clockwise direction for points in the track
   // -> use several intermediate points inside of track to get directions
   // function assumes that the point x,y is inside of track
-    get_direction_checkpoint : function(x,y) { // TODO FIXME
-    if (x < px_offset +1.2*m_to_px) {
-      return [px_offset +1.2*m_to_px, px_offset + 0.8*m_to_px] // TOP LEFT
-    } else if (y < px_offset + 0.8*m_to_px && x < px_offset +5.2*m_to_px) {
-          return [px_offset +5.2*m_to_px, px_offset + 0.8*m_to_px] // TOP RIGHT    
+  get_direction_checkpoint : function(x,y) { // TODO FIXME
+    if (x <= px_offset +1.2*m_to_px && y <= px_offset + 2.45*m_to_px) {
+      // return [px_offset +1.2*m_to_px, px_offset + 0.8*m_to_px] // TOP LEFT
+      return [px_offset +1.2*m_to_px, px_offset + 0.4*m_to_px]
+    } else if (y <= px_offset + 0.8*m_to_px && x <= px_offset +5.2*m_to_px) {
+          // return [px_offset +5.2*m_to_px, px_offset + 0.8*m_to_px] // TOP RIGHT    
+      return [px_offset +5.2*m_to_px, px_offset + 0.4*m_to_px]
+    } else if(x > px_offset +5.2*m_to_px && y <=  px_offset + 2.45*m_to_px){
+              return [px_offset +7.1*m_to_px, px_offset + 2.45*m_to_px] // RIGHT CENTER
      } else if(x > px_offset +5.2*m_to_px) {
-       return [px_offset +5.2*m_to_px, px_offset + 3.7*m_to_px] // BOTTOM RIGHT
-     } else if (y > px_offset + 3.7*m_to_px) {
-       return [px_offset +1.2*m_to_px, px_offset + 3.7*m_to_px] // BOTTOM LEFT
+       // return [px_offset +5.2*m_to_px, px_offset + 3.7*m_to_px] // BOTTOM RIGHT
+       return [px_offset +5.2*m_to_px, px_offset + 4.1*m_to_px]
+     } else if (y > px_offset + 3.7*m_to_px && x > px_offset +1.2*m_to_px) {
+       // return [px_offset +1.2*m_to_px, px_offset + 3.7*m_to_px] // BOTTOM LEFT
+       return [px_offset +1.2*m_to_px, px_offset + 4.1*m_to_px]
+      } else if (x <= px_offset +1.2*m_to_px) {
+       return [px_offset +1.2*m_to_px - 1.9*m_to_px, px_offset + 2.45*m_to_px] // LEFT CENTER
       }
   }
+}
 
+// Object for logging the particles going throught the measured part to create FD
+let logger = {
+  // step of the simulation
+  step: 0,
+
+  // set of all particles inside (even those that came in wrong direction)
+  particles_inside: new Set(),
+
+  // set of all particles we measure and their time in
+  // just the ones that correctly entered on right and did not go out
+  particles_measured: new Map(),
+
+  // check if point is inside of measured section
+  is_in : function(x, y) {
+    // TODO: implement using real shape + add some offset around boundaries of y
+    let y_min = px_offset + 3.7*m_to_px;
+    let y_max = px_offset + 3.7*m_to_px + 0.8*m_to_px
+    let x_min = px_offset +3.2*m_to_px - 1 * m_to_px
+    let x_max = px_offset +3.2*m_to_px + 1 * m_to_px
+    return (y > y_min - 15 && y < y_max + 15 && x > x_min && x < x_max)  
+  },
+
+  // check if point is right of measured section
+  is_right_of_measured : function(x, y) {
+    // TODO: implement using real shape + add some offset around boundaries of y
+    let y_min = px_offset + 3.7*m_to_px;
+    let y_max = px_offset + 3.7*m_to_px + 0.8*m_to_px
+    let x_max = px_offset +3.2*m_to_px + 1 * m_to_px
+    return (y > y_min - 15 && y < y_max + 15 && x > x_max)  
+  },
+
+  // check if point is right of measured section
+  is_left_of_measured : function(x, y) {
+    // TODO: implement using real shape + add some offset around boundaries of y
+    let y_min = px_offset + 3.7*m_to_px;
+    let y_max = px_offset + 3.7*m_to_px + 0.8*m_to_px
+    let x_min = px_offset +3.2*m_to_px - 1 * m_to_px
+    return (y > y_min - 15 && y < y_max + 15 && x < x_min)  
+  },
+
+  // check if point is in and closer to right end of measured section
+  // assumes point just crossed in
+  crossed_in_from_right : function(x, y) {
+    // TODO: implement using real shape + add some offset around boundaries of y
+    let y_min = px_offset + 3.7*m_to_px;
+    let y_max = px_offset + 3.7*m_to_px + 0.8*m_to_px
+    let x_mid = px_offset +3.2*m_to_px
+    return (y > y_min - 15 && y < y_max + 15 && x > x_mid)
+  },
+
+  // check if point is in, and closer to left end of measured section
+  // assumes point just crossed in
+  crossed_in_from_left : function(x, y) {
+    // TODO: implement using real shape + add some offset around boundaries of y
+    let y_min = px_offset + 3.7*m_to_px;
+    let y_max = px_offset + 3.7*m_to_px + 0.8*m_to_px
+    let x_mid = px_offset +3.2*m_to_px
+    return (y > y_min - 15 && y < y_max + 15 && x < x_mid)
+  },
+
+  update_particles_in : function() {
+    this.particles_inside = new Set()
+    for (let p of Scene.swarm) {
+      if (this.is_in(p.pos.x, p.pos.y)) {
+        this.particles_inside.add(p)
+      }
+    }  
+  }
 }
 
 class Particle {
-  constructor() {
+  constructor(id) {
     this.pos = createVector(random(0, Scene.w), random(0, Scene.h))
     this.dir = p5.Vector.random2D()
+    this.id = id
   }
 
   step() {
@@ -249,21 +329,80 @@ function setup() {
 
   // generate particles
   for (let i = 0; i < 100; i++) {
-    Scene.swarm.push(new Particle())
+    Scene.swarm.push(new Particle(i))
   }
 }
 
+// draw and update logger
 function draw() {
   clear()
   display_racetrack() // always display racetrack after clear
-  let i = 0
+
+  // new step
+  logger.step++
+
+  // save particles that were in before this step
+  let particles_in_before = logger.particles_inside
+  
   for (let p of Scene.swarm) {
-    // TODO: update logging depending on needs
-    // console.log(i, p.pos.x, p.pos.y)
     p.step()
     p.draw()
-    i++
   }
+  logger.update_particles_in()
+  let particles_in_after = logger.particles_inside
+
+  // TODO: this approach does not take in account that some particles are going backward
+
+  // compute set differences
+  let incoming = new Set([...particles_in_after].filter((x) => !particles_in_before.has(x)));
+  let outgoing = new Set([...particles_in_before].filter((x) => !particles_in_after.has(x)));
+  
+  let correctly_incoming = new Set();
+  let correctly_outgoing = new Set();
+  let incorrectly_incoming = new Set();
+  let incorrectly_outgoing = new Set();
+
+  let times_to_log = new Map();
+
+  // check particles that went out - if they are measured atm and went out on left, log them
+  // if they went out on right - just remove them, they went backwards
+  for (p of outgoing) {
+    if (logger.is_left_of_measured(p.pos.x, p.pos.y)) {
+      correctly_outgoing.add(p)
+      times_to_log.set(p.id, logger.step - logger.particles_measured.get(p)) // get the total time of travel
+    } else {
+      incorrectly_outgoing.add(p)
+      logger.particles_measured.delete(p) // just remove it if it was measured (if not, its ok too)
+    }
+  }
+
+  // check particles that went in - if they went in on right, add them to measured ones
+  // if they went in on left - do not add them to measured, they went backwards
+  for (p of incoming) {
+    if (logger.crossed_in_from_right(p.pos.x, p.pos.y)) {
+      correctly_incoming.add(p)
+      logger.particles_measured.set(p, logger.step) // add entry time
+    } else {
+      incorrectly_incoming.add(p)
+      // dont measure this one
+    }
+  }
+
+  // only log IDs
+  let correctly_incoming_ids = [...correctly_incoming].map((x) => x.id);
+  let correctly_outgoing_ids = [...correctly_outgoing].map((x) => x.id);
+
+  // collect all times of particles that just finished
+  times_string = ""
+  for (p_id of times_to_log) {
+    // at the beginning of the logging, some items may be NaN (particles that started at measured area)
+    if (!isNaN(times_to_log.get(p_id[0])) && times_to_log.get(p_id[0]) != null) {
+      times_string = times_string + " " + times_to_log.get(p_id[0]).toString()
+    }
+  }
+
+  // Format is: STEP | TOTAL_NUM_PARTICLES_INSIDE | TIMES_OF_FINISHED_PARTICLES
+  console.log("%i | %i | %s", logger.step,  logger.particles_inside.size, times_string)
 }
 
 // draw simple line from begin to end
@@ -287,6 +426,7 @@ function display_racetrack() {
   let original_lineWidth = ctx.lineWidth;
   let original_lineJoin = ctx.lineJoin;
   let original_lineCap = ctx.lineCap;
+  let original_fillStyle = ctx.fillStyle;
 
   ctx.lineJoin = 'circular';
   ctx.lineCap = 'circular';
@@ -301,10 +441,20 @@ function display_racetrack() {
     drawLine(ctx, racetrack.outer[i], racetrack.outer[(i+1) % len], 'green', 10);
   }
 
+  // draw finish line
+  let widthOfFinnish = 2*m_to_px
+  let middleTopFinnish = [px_offset +3.2*m_to_px, px_offset + 3.7*m_to_px]
+  ctx.fillStyle = "#C5C5C5"
+  ctx.fillRect(middleTopFinnish[0] - widthOfFinnish/2, middleTopFinnish[1]+5, widthOfFinnish, 0.8*m_to_px-10);
+  
+  // set the original color
+  ctx.fillStyle = '#000000'
+  
+
   // assign back the original values 
   ctx.strokeStyle = original_strokeStyle;
   ctx.lineWidth = original_lineWidth;
   ctx.lineJoin = original_lineJoin;
   ctx.lineCap = original_lineCap;
+  ctx.fillStyle = original_fillStyle;
 };
-
