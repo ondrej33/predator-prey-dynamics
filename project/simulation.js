@@ -1,7 +1,7 @@
 let Scene = {
   w : 800, 
   h : 600, 
-  swarm : [], 
+  swarm : new Set(), 
   num_fish : 200,
   shark: null,
 
@@ -25,6 +25,17 @@ let Scene = {
     let r = [];
     for (let p of this.swarm) {
       if (dist(p.pos.x, p.pos.y, x.x, x.y) <= this.shark_sense_dist) {
+        r.push(p);
+      }
+    }
+    return r;
+  },
+
+  // general function to get neighbours up to certain distance
+  eaten_neighbours : function(x) {
+    let r = [];
+    for (let p of this.swarm) {
+      if (dist(p.pos.x, p.pos.y, x.x, x.y) <= this.shark.kill_radius) {
         r.push(p);
       }
     }
@@ -119,6 +130,7 @@ class Shark {
     this.pos = createVector(random(0, Scene.w), random(0, Scene.h));
     this.dir = p5.Vector.random2D();
     this.id = id;
+    this.kill_radius = 20;
   }
 
   // TODO: re-implement the forces based on actual Shark behaviour
@@ -159,7 +171,7 @@ function setup() {
 
   // generate fish
   for (let i = 0; i < Scene.num_fish; i++) {
-    Scene.swarm.push(new Fish(i));
+    Scene.swarm.add(new Fish(i));
   }
 
   // generate shark
@@ -183,4 +195,14 @@ function draw() {
   Scene.shark.step();
   Scene.shark.draw();
 
+  // remove fish that were eaten in this step
+  let eaten_fish = Scene.eaten_neighbours(Scene.shark.pos);
+  let counter_eaten = 0;
+  for (let p of eaten_fish) {
+    Scene.swarm.delete(p);
+    counter_eaten++;
+  }
+  if (counter_eaten > 0) {
+    console.log("Step "+logger.step+": eaten "+counter_eaten+" fish");
+  }
 }
