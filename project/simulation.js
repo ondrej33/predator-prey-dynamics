@@ -6,7 +6,7 @@ let Scene = {
   shark: null,
 
   // TODO: change this based on actual fish and shark behaviour
-  fish_sense_dist : 25, // distance for fish senses
+  fish_sense_dist : 30, // distance for fish senses
   shark_sense_dist: 50, // distance for shark senses
 
   // get neighbors for prey fish up to certain distance
@@ -79,7 +79,7 @@ class Fish {
       avg_p.add(n.pos);
 
       // separation
-      if (n != this) {
+      if (n != this) {  
         let away = p5.Vector.sub(this.pos, n.pos);
         away.div(away.magSq());
         avg_d.add(away);
@@ -162,7 +162,7 @@ class Shark {
 
   draw() {
     fill(0);
-    ellipse(this.pos.x, this.pos.y, 50, 50);
+    ellipse(this.pos.x, this.pos.y, 50, 80, Math.PI / 4, 0, 2 * Math.PI);
   }
 }
 
