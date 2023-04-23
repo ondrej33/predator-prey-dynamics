@@ -11,11 +11,10 @@
 
 
 // define constants
-const int WIDTH = 800;
+const int WIDTH = 600;
 const int HEIGHT = 600;
 
 using namespace std;
-
 
 glm::vec2 getRandomPlace(int mapWidth, int mapHeight) {
     return {(float)(rand() % mapWidth), (float)(rand() % mapHeight)};
@@ -52,11 +51,7 @@ glm::vec2 getNearestBorderPoint(glm::vec2 fishPosition, int canvasWidth, int can
 }
 
 bool isFishOutOfBorders(glm::vec2 fishPosition, int canvasWidth, int canvasHeight) {
-    if (fishPosition.x < 0 || fishPosition.x > canvasWidth || fishPosition.y < 0 || fishPosition.y > canvasHeight) {
-        return true;
-    }
-
-    return false;
+    return (fishPosition.x < 0 || fishPosition.x > canvasWidth || fishPosition.y < 0 || fishPosition.y > canvasHeight);
 }
 
 class Fish {
@@ -74,7 +69,7 @@ public:
     }
 
     void step(vector<Fish> & neighbours, const vector<glm::vec2>& sharks_pos, int fish_sense_dist, bool wall, float fish_max_speed) {
-        // when is dead, do nothing
+        // when it is dead, do nothing
         if (!alive)
             return;
 
@@ -104,7 +99,7 @@ public:
 
         // divide everything by N (we want average values)
         avg_sin /= (float)N, avg_cos /= (float)N, avg_p /= N, avg_d /= N;
-
+        // get angle from sin cos values
         float avg_angle = atan2(avg_sin, avg_cos);
 
         // add some random noise to the angle
@@ -129,8 +124,7 @@ public:
             // add repulsive force from shark if it is near the fish
             if (glm::distance(shark_pos, this->pos) <= (float) fish_sense_dist) {
                 glm::vec2 shark_repulsion_vec = this->pos - shark_pos;
-                shark_repulsion_vec /= glm::length(shark_repulsion_vec); // normalize
-                // shark_repulsion_vec = glm::normalize(shark_repulsion_vec); // normalize
+                shark_repulsion_vec /= glm::length(shark_repulsion_vec); // divide by magnitude
                 shark_repulsion_vec *= 10;
                 this->dir += shark_repulsion_vec;
             }
@@ -142,8 +136,7 @@ public:
             glm::vec2 nearest_wall = getNearestBorderPoint(this->pos, WIDTH, HEIGHT);
             if (glm::distance(nearest_wall, this->pos) <= (float)fish_sense_dist) {
                 glm::vec2 wall_repulsion_vector = this->pos - nearest_wall;
-                wall_repulsion_vector /= glm::length(wall_repulsion_vector); // normalize
-                //    wall_repulsion_vector = glm::normalize(wall_repulsion_vector); // normalize
+                wall_repulsion_vector /= glm::length(wall_repulsion_vector); // divide by its magnitude
                 // wall_repulsion_vector *= 10;
                 this->dir += wall_repulsion_vector;
             }
@@ -155,7 +148,6 @@ public:
         }
 
         // handle max speed of a fish
-//        float fish_max_speed = 6;
         if (glm::length(this->dir) > fish_max_speed)
             this->dir /= (glm::length(this->dir) / fish_max_speed);
 
@@ -201,7 +193,7 @@ public:
             // otherwise go for the average position of neighbouring fish
             avg_p /= static_cast<float>(N);
             glm::vec2 hunt_vector = avg_p - this->pos;
-            hunt_vector = glm::normalize(hunt_vector);// normalize by its squared length
+            hunt_vector /= glm::length2(hunt_vector); // divide by its squared magnitude
             this->dir += hunt_vector;
         }
 
@@ -211,8 +203,7 @@ public:
             glm::vec2 nearest_wall = getNearestBorderPoint(this->pos, WIDTH, HEIGHT);
             if (glm::distance(nearest_wall, this->pos) <= (float)shark_sense_dist) {
                 glm::vec2 wall_repulsion_vec = this->pos - nearest_wall;
-                wall_repulsion_vec /= glm::length(wall_repulsion_vec); // normalize
-                //    wall_repulsion_vec = glm::normalize(wall_repulsion_vec); // normalize
+                wall_repulsion_vec /= glm::length(wall_repulsion_vec); // divide by its magnitude
 //                 wall_repulsion_vec *= 10;
                 this->dir += wall_repulsion_vec;
             }
@@ -225,8 +216,8 @@ public:
 
 
         // handle max speed of a shark
-        if (glm::length(this->dir) > (float)5)
-            this->dir /= (glm::length(this->dir) / (float)5);
+        if (glm::length(this->dir) > shark_max_speed)
+            this->dir /= (glm::length(this->dir) / shark_max_speed);
 
         // update position
         this->pos += this->dir;
@@ -248,10 +239,11 @@ private:
     int shark_max_speed;
     float fish_max_speed;
     bool wall;
+    int num_steps;
 
 public:
     Scene(int width, int height, int num_fish, int fish_sense_dist, int shark_sense_dist, int num_sharks,
-          bool wall, int shark_kill_radius, int shark_max_speed, float fish_max_speed) {
+          bool wall, int shark_kill_radius, int shark_max_speed, float fish_max_speed, int num_steps) {
         this->width = width;
         this->height = height;
         this->num_fish = num_fish;
@@ -262,6 +254,7 @@ public:
         this->shark_kill_radius = shark_kill_radius;
         this->shark_max_speed = shark_max_speed;
         this->fish_max_speed = fish_max_speed;
+        this->num_steps = num_steps;
 
         // generate fish
         for (int i=0; i < this->num_fish; i ++) {
@@ -299,17 +292,15 @@ public:
         return neighbours;
     }
 
-    // general function to get neighbours up to certain distance
+    // mark eaten fish as dead and return them
     vector<Fish> getEatenFish(const Shark& s) {
         vector<Fish> eatenFish;
-
         for (auto& f: swarm) {
             if (f.alive && glm::distance(s.pos, f.pos) <= (float)s.kill_radius) {
-                eatenFish.push_back(f);
                 f.alive = false;
+                eatenFish.push_back(f);
             }
         }
-
         return eatenFish;
     }
 
@@ -322,12 +313,13 @@ public:
         if (y >= this->height) y -= this->height;
     }
 
-    void simulate(int steps, const string& output_filepath) {
+    void simulate(int steps, const string& output_filepath, bool debug) {
         nlohmann::json log;
         vector<nlohmann::json> steps_j;
+        size_t fish_eaten_total = 0;
 
         for (int i = 0; i < steps; i++){
-            std::cout << "step #" << i << endl;
+            if (debug) std::cout << "step #" << i;
 
             // move fish
             for (auto& f: swarm) {
@@ -341,32 +333,47 @@ public:
             }
 
             // handle sharks
+            size_t eaten_fish_counter = 0;
             for (auto &s: this->sharks) {
                 // move shark
                 vector<Fish> prey_neighbours = getFishPrey(s);
                 s.step(prey_neighbours, this->wall, this->shark_max_speed, this->shark_sense_dist);
                 wrap(s.pos[0], s.pos[1]);
 
-                // label eaten fish
-                vector<Fish> eatenFish = getEatenFish(s);
+                // label and count eaten fish
+                vector<Fish> eaten_fish = getEatenFish(s);
+                eaten_fish_counter += eaten_fish.size();
             }
-
-            steps_j.push_back(logStepToJson());
+            if (eaten_fish_counter > 0) {
+                if (debug) std::cout << " [" << eaten_fish_counter << " fish eaten]" << endl;
+                fish_eaten_total += eaten_fish_counter;
+            } else {
+                if (debug) std::cout << endl;
+            }
+            if (debug) steps_j.push_back(logStepToJson());
         }
 
-        // complete json object
-        log = {
-                {"scene", {
-                                  {"width", WIDTH},
-                                  {"height", HEIGHT}
-                          }},
-                {"steps", steps_j}
-        };
+        // always print this
+        std::cout << "TOTAL FISH EATEN: " << fish_eaten_total << endl;
 
-        // save log to json file
-        std::ofstream file(output_filepath);
-        file << log.dump(-1);
-        file.close();
+        if (debug) {
+            // complete json object
+            log = {
+                {"scene", 
+                    {
+                        {"width", WIDTH},
+                        {"height", HEIGHT}
+                    }
+                },
+                {"stepsTotal", this->num_steps},
+                {"steps", steps_j}
+            };
+
+            // save log to json file -- must not forget to delete previous content
+            std::ofstream file(output_filepath, std::ofstream::out | std::ofstream::trunc);
+            file << log.dump(-1);
+            file.close();
+        }
     }
 
     nlohmann::json logStepToJson() {
@@ -408,22 +415,24 @@ public:
     }
 };
 
-int main(int argc, char ** argv) {
+int main() {
     // SET VARIABLES
-    const int num_fish = 500,
-            fish_sense_dist = 30,
+    const int num_fish = 1000,
+            fish_sense_dist = 25,
             shark_sense_dist = 50,
-            shark_kill_radius = 20,
+            shark_kill_radius = 15,
             num_steps = 2000,
             num_sharks = 3,
-            shark_max_speed = 5,
+            shark_max_speed = 6,
             fish_max_speed = 5;
+
+    bool debug = true; // this enables printing + logging to json
     bool wall = true;
     const string output_filepath = "output.json";
 
     // =============================
 
-    std::cout << "Simulation starts:" << std::endl;
+    std::cout << "Simulation starts." << std::endl;
 
     // Start measuring time
     std::clock_t start = std::clock();
@@ -438,10 +447,11 @@ int main(int argc, char ** argv) {
                                                  wall,
                                                  shark_kill_radius,
                                                  shark_max_speed,
-                                                 fish_max_speed);
+                                                 fish_max_speed,
+                                                 num_steps);
 
     // simulation
-    scene->simulate(num_steps, output_filepath);
+    scene->simulate(num_steps, output_filepath, debug);
 
     // Stop measuring time
     std::clock_t end = std::clock();

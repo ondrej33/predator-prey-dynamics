@@ -1,5 +1,11 @@
 
+let logger = {
+    step: 0,
+    stepsTotal: 2000 // save steps num to be able to freeze the last step
+}
+
 let output;
+let stepCounter;
 fetch('output.json')
     .then(response => response.json())
     .then(data => {
@@ -15,13 +21,12 @@ function setup() {
             console.log(output);
                 
             // create new HTML paragraph element to display step counter
-            stepCounter = createP("Step: " + step);
+            stepCounter = createP("Step: " + logger.step);
+
+            // save max num of steps
+            logger.stepsTotal = output.stepsTotal;
         })
         .catch(error => console.error(error));
-}
-
-let logger = {
-    step: 0
 }
 
 function draw() {
@@ -29,9 +34,9 @@ function draw() {
         fetch('output.json')
             .then(response => response.json())
             .then(output => {
-                logger.step++
-                let i = logger.step
-                console.log(i)
+                logger.step++;
+                let i = logger.step;
+                console.log(i);
 
                 clear();
 
@@ -44,21 +49,23 @@ function draw() {
                 // render sharks
                 output.steps[i].sharks.forEach(el => {
                     fill(0);
-                    ellipse(el.x, el.y, 50, 80, Math.PI / 4, 0, 2 * Math.PI);
+                    ellipse(el.x, el.y, 20, 30, Math.PI / 4, 0, 2 * Math.PI);
                 });
                 // fill(0);
                 // ellipse(output.steps[i].shark.x, output.steps[i].shark.y, 50, 80, Math.PI / 4, 0, 2 * Math.PI);
                 
-                        // create new HTML paragraph element to display step counter
-        stepCounter = createP("Step: " + i);
+                stepCounter.html("Step: " + i);
         
             })
             .catch(error => console.error(error));
     }
-    else {
+    else if (logger.step < logger.stepsTotal) {
         logger.step++
         let i = logger.step
         console.log(i)
+
+        // do not log every step
+        if (i % 2 == 0) return
 
         clear();
 
