@@ -49,10 +49,8 @@ function draw() {
                 // render sharks
                 output.steps[i].sharks.forEach(el => {
                     fill(0);
-                    ellipse(el.x, el.y, 20, 30, Math.PI / 4, 0, 2 * Math.PI);
+                    ellipse(el.x, el.y, 30, 50, el.dir, 0, 2 * Math.PI);
                 });
-                // fill(0);
-                // ellipse(output.steps[i].shark.x, output.steps[i].shark.y, 50, 80, Math.PI / 4, 0, 2 * Math.PI);
                 
                 stepCounter.html("Step: " + i);
         
@@ -88,13 +86,10 @@ function draw() {
 
 
         // render sharks
-        // stroke(0);
-        // fill('blue');
-        // ellipse(output.steps[i].shark.x, output.steps[i].shark.y, 50, 80, Math.PI / 4, 0, 2 * Math.PI);
         output.steps[i].sharks.forEach(el => {
             stroke(0);
             fill('blue');
-            ellipse(el.x, el.y, 50, 80, Math.PI / 4, 0, 2 * Math.PI);
+            ellipse(el.x, el.y, 30, 50, el.dir, 0, 2 * Math.PI);
         });
         
 

@@ -9,12 +9,21 @@
 #include "glm/glm/glm.hpp"
 #include "glm/glm/gtx/norm.hpp"
 
+using namespace std;
 
-// define constants
+// define scene constants
 const int WIDTH = 600;
 const int HEIGHT = 600;
 
-using namespace std;
+// define MODEL PARAMETERS - constants to multiply various forces
+// these (their subset) can be used for parameter optimisation
+const float FISH_MOMENTUM_CONSTANT = 0.75;
+const float SHARK_MOMENTUM_CONSTANT = 1.;
+const float ALIGNMENT_CONSTANT = 0.2;
+const float COHESION_CONSTANT = 0.05;
+const float SEPARATION_CONSTANT = 20.;
+const float SHARK_REPULSION_CONSTANT = 10.;
+const float HUNT_CONSTANT = 0.5;
 
 glm::vec2 getRandomPlace(int mapWidth, int mapHeight) {
     return {(float)(rand() % mapWidth), (float)(rand() % mapHeight)};
@@ -73,16 +82,17 @@ public:
         if (!alive)
             return;
 
+
+        // compute average angle, average position and average distance from neighbours
+        // avg angle for alignment, avg pos for cohesion, avg dist for separation
+
         int N = 0;
         float avg_sin = 0, avg_cos = 0;
         glm::vec2 avg_p(0), avg_d(0);
-
-        // compute average angle and average position
-        // avg angle for alignment, avg pos for cohesion
         for (auto n : neighbours) {
             avg_p += n.pos;
 
-            // separation
+            // separation computation
             if (n.id != this->id) {
                 glm::vec2 away = this->pos - n.pos;
                 away /= glm::length2(away);
@@ -96,60 +106,67 @@ public:
             avg_cos += cos(angle);
             N++;
         }
-
         // divide everything by N (we want average values)
         avg_sin /= (float)N, avg_cos /= (float)N, avg_p /= N, avg_d /= N;
+
         // get angle from sin cos values
         float avg_angle = atan2(avg_sin, avg_cos);
-
-        // add some random noise to the angle
+        // add some random noise to the direction angle
         std::mt19937 rng;
         std::uniform_real_distribution<float> dist(-0.01, 0.01);
         float noise = dist(rng);
         avg_angle += noise;
 
-        this->dir = glm::vec2(cos(avg_angle), sin(avg_angle));
+        // momentum - consider previous direction as a base to add the forces
+        this->dir = this->dir * FISH_MOMENTUM_CONSTANT;
 
-        // implement the cohesion
-        glm::vec2 cohesion = avg_p - this->pos;
-        cohesion /= 20;
-        this->dir += cohesion;
+        // alignment force
+        glm::vec2 allignment_vec = glm::vec2(cos(avg_angle), sin(avg_angle));
+        allignment_vec *= ALIGNMENT_CONSTANT;
+        this->dir += allignment_vec;
 
-        // add separation
-        avg_d *= 20;
-        this->dir += avg_d;
+        // cohesion force
+        glm::vec2 cohesion_vec = avg_p - this->pos;
+        cohesion_vec *= COHESION_CONSTANT;
+        this->dir += cohesion_vec;
 
-        // repulse from each shark
+        // separation force
+        glm::vec2 separation_vec = avg_d;
+        separation_vec *= SEPARATION_CONSTANT;
+        this->dir += separation_vec;
+
+        // repulse force from each shark
         for (auto & shark_pos: sharks_pos) {
             // add repulsive force from shark if it is near the fish
             if (glm::distance(shark_pos, this->pos) <= (float) fish_sense_dist) {
                 glm::vec2 shark_repulsion_vec = this->pos - shark_pos;
                 shark_repulsion_vec /= glm::length(shark_repulsion_vec); // divide by magnitude
-                shark_repulsion_vec *= 10;
+                shark_repulsion_vec *= SHARK_REPULSION_CONSTANT;
                 this->dir += shark_repulsion_vec;
             }
         }
 
-        // handle wall
+        // wall repulsion, if it is enabled
         if (wall) {
-            // add wall repulsion vector
+            // add wall repulsion vector (from the nearest wall point)
             glm::vec2 nearest_wall = getNearestBorderPoint(this->pos, WIDTH, HEIGHT);
             if (glm::distance(nearest_wall, this->pos) <= (float)fish_sense_dist) {
                 glm::vec2 wall_repulsion_vector = this->pos - nearest_wall;
                 wall_repulsion_vector /= glm::length(wall_repulsion_vector); // divide by its magnitude
-                // wall_repulsion_vector *= 10;
+                wall_repulsion_vector *= 2; // make it bit larger to avoid clustering in corners
                 this->dir += wall_repulsion_vector;
             }
 
-            // cant go trough wall
-            if (isFishOutOfBorders(this->pos + this->dir, WIDTH, HEIGHT))
-//                this->dir = {-this->dir[1], this->dir[0]};
+            // cant go through the wall
+            if (isFishOutOfBorders(this->pos + this->dir, WIDTH, HEIGHT)) {
                 this->dir *= -1;
+            }
         }
 
-        // handle max speed of a fish
-        if (glm::length(this->dir) > fish_max_speed)
+        // check if fish does not exceed its max speed 
+        if (glm::length(this->dir) > fish_max_speed) {
             this->dir /= (glm::length(this->dir) / fish_max_speed);
+        }
 
         // update fish position
         this->pos += this->dir;
@@ -173,14 +190,17 @@ public:
     };
 
     void step(vector<Fish> & neighbours, bool wall, int shark_max_speed, int shark_sense_dist) {
-        int N = 0;
-        auto avg_p = glm::vec2(0.0f);
 
         // compute the average position of neighbouring fish
+        int N = 0;
+        auto avg_p = glm::vec2(0.0f);
         for (Fish n : neighbours) {
             avg_p += n.pos;
             N++;
         }
+
+        // momentum - consider previous direction as a base to add the forces to
+        this->dir = this->dir * SHARK_MOMENTUM_CONSTANT;
 
         if (N == 0) {
             // if no neighbours, shift randomly for a bit
@@ -188,36 +208,38 @@ public:
             std::mt19937 gen(rd());
             std::uniform_real_distribution<float> dis(-0.5f, 0.5f);
             float avg_angle = dis(gen);
-            this->dir = glm::vec2(cos(avg_angle), sin(avg_angle));
+            auto random_vec = glm::vec2(cos(avg_angle), sin(avg_angle));
+            this->dir += random_vec;
         } else {
             // otherwise go for the average position of neighbouring fish
             avg_p /= static_cast<float>(N);
             glm::vec2 hunt_vector = avg_p - this->pos;
-            hunt_vector /= glm::length2(hunt_vector); // divide by its squared magnitude
+            hunt_vector /= glm::length2(hunt_vector); // divide by it magnitude
+            hunt_vector *= HUNT_CONSTANT;
             this->dir += hunt_vector;
         }
 
-        // add wall behaviour
+        // wall repulsion, if it is enabled
         if (wall) {
             // add wall repulsion vector
             glm::vec2 nearest_wall = getNearestBorderPoint(this->pos, WIDTH, HEIGHT);
             if (glm::distance(nearest_wall, this->pos) <= (float)shark_sense_dist) {
                 glm::vec2 wall_repulsion_vec = this->pos - nearest_wall;
                 wall_repulsion_vec /= glm::length(wall_repulsion_vec); // divide by its magnitude
-//                 wall_repulsion_vec *= 10;
+                wall_repulsion_vec *= 2;
                 this->dir += wall_repulsion_vec;
             }
 
             // cant go trough wall
-            if (isFishOutOfBorders(this->pos + this->dir, WIDTH, HEIGHT))
-//                this->dir = {-this->dir[1], this->dir[0]};
+            if (isFishOutOfBorders(this->pos + this->dir, WIDTH, HEIGHT)) {
                 this->dir *= -1;
+            }
         }
 
-
-        // handle max speed of a shark
-        if (glm::length(this->dir) > shark_max_speed)
+        // ensure max speed of a shark
+        if (glm::length(this->dir) > shark_max_speed) {
             this->dir /= (glm::length(this->dir) / shark_max_speed);
+        }
 
         // update position
         this->pos += this->dir;
@@ -304,8 +326,7 @@ public:
         return eatenFish;
     }
 
-    // Add outer boundaries of the canvas
-    // we use "cyclic" boundaries for now
+    // FUnction to wrap outer boundaries of the canvas using "cyclic" boundaries
     void wrap(float& x, float& y) {
         if (x < 0) x += this->width;
         if (y < 0) y += this->height;
@@ -384,10 +405,12 @@ public:
         vector<nlohmann::json> swarm_j;
         for (auto & f: this->swarm) {
             nlohmann::json fish_j;
+            float direction_radians = atan2(f.dir[0], f.dir[1]);
             fish_j = {
                     {"id", f.id},
                     {"x", (int)f.pos[0]},
                     {"y", (int)f.pos[1]},
+                    {"dir", direction_radians},
                     {"alive", f.alive}
             };
             swarm_j.emplace_back(fish_j);
@@ -397,10 +420,12 @@ public:
         vector<nlohmann::json> sharks_j;
         for (auto &s: this->sharks) {
             nlohmann::json shark_j;
+            float direction_radians = atan2(s.dir[0], s.dir[1]);
             shark_j = {
                     {"id", s.id},
-                    {"x", (int)s.pos[0]},
-                    {"y", (int)s.pos[1]}
+                    {"x", s.pos[0]},
+                    {"y", s.pos[1]},
+                    {"dir", direction_radians},
             };
             sharks_j.emplace_back(shark_j);
         }
@@ -417,7 +442,7 @@ public:
 
 int main() {
     // SET VARIABLES
-    const int num_fish = 1000,
+    const int num_fish = 750,
             fish_sense_dist = 25,
             shark_sense_dist = 50,
             shark_kill_radius = 15,
