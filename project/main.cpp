@@ -30,8 +30,8 @@ glm::vec2 getRandomPlace(int mapWidth, int mapHeight) {
 }
 
 glm::vec2 getRandomDirection() {
-    return {(float)(1 - 2*(rand()%2)) * (float) (rand() % 1000000) / 1000000,
-            (float)(1 - 2*(rand()%2)) * (float) (rand() % 1000000) / 1000000};
+    return {(float)(1 - 2 * (rand() % 2)) * (float) (rand() % 1000000) / 1000000,
+            (float)(1 - 2 * (rand() % 2)) * (float) (rand() % 1000000) / 1000000};
 }
 
 glm::vec2 getNearestBorderPoint(glm::vec2 fishPosition, int canvasWidth, int canvasHeight) {
@@ -441,7 +441,10 @@ public:
 };
 
 int main() {
-    // SET VARIABLES
+    // TODO: add CLI arguments and parse them, instead of defining model parameters
+    // as constants at the beginning
+
+    // set SCENE variables
     const int num_fish = 750,
             fish_sense_dist = 25,
             shark_sense_dist = 50,
@@ -463,17 +466,19 @@ int main() {
     std::clock_t start = std::clock();
 
     // setup Scene
-    shared_ptr<Scene> scene = make_shared<Scene>(WIDTH,
-                                                 HEIGHT,
-                                                 num_fish,
-                                                 fish_sense_dist,
-                                                 shark_sense_dist,
-                                                 num_sharks,
-                                                 wall,
-                                                 shark_kill_radius,
-                                                 shark_max_speed,
-                                                 fish_max_speed,
-                                                 num_steps);
+    shared_ptr<Scene> scene = make_shared<Scene>(
+        WIDTH,
+        HEIGHT,
+        num_fish,
+        fish_sense_dist,
+        shark_sense_dist,
+        num_sharks,
+        wall,
+        shark_kill_radius,
+        shark_max_speed,
+        fish_max_speed,
+        num_steps
+    );
 
     // simulation
     scene->simulate(num_steps, output_filepath, debug);
