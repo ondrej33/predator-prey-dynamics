@@ -8,6 +8,8 @@
 #include <fstream>
 #include "glm/glm/glm.hpp"
 #include "glm/glm/gtx/norm.hpp"
+#include <boost/program_options.hpp>
+
 
 using namespace std;
 
@@ -17,13 +19,42 @@ const int HEIGHT = 600;
 
 // define MODEL PARAMETERS - constants to multiply various forces
 // these (their subset) can be used for parameter optimisation
-const float FISH_MOMENTUM_CONSTANT = 0.75;
-const float SHARK_MOMENTUM_CONSTANT = 1.;
-const float ALIGNMENT_CONSTANT = 0.2;
-const float COHESION_CONSTANT = 0.05;
-const float SEPARATION_CONSTANT = 20.;
-const float SHARK_REPULSION_CONSTANT = 10.;
-const float HUNT_CONSTANT = 0.5;
+float FISH_MOMENTUM_CONSTANT = 0.75;
+float SHARK_MOMENTUM_CONSTANT = 1.;
+float ALIGNMENT_CONSTANT = 0.2;
+float COHESION_CONSTANT = 0.05;
+float SEPARATION_CONSTANT = 20.;
+float SHARK_REPULSION_CONSTANT = 10.;
+float HUNT_CONSTANT = 0.5;
+
+bool help=false;
+
+
+void parse_arguments(int argc, char** argv) {
+    // Define the command line options
+    boost::program_options::options_description desc("Allowed options");
+    desc.add_options()
+        ("help", "prints help")
+        ("fish-momentum", boost::program_options::value<float>(&FISH_MOMENTUM_CONSTANT), "Momentum constant for fish")
+        ("shark-momentum", boost::program_options::value<float>(&SHARK_MOMENTUM_CONSTANT), "Momentum constant for sharks")
+        ("alignment", boost::program_options::value<float>(&ALIGNMENT_CONSTANT), "Alignment constant")
+        ("cohesion", boost::program_options::value<float>(&COHESION_CONSTANT), "Cohesion constant")
+        ("separation", boost::program_options::value<float>(&SEPARATION_CONSTANT), "Separation constant")
+        ("shark-repulsion", boost::program_options::value<float>(&SHARK_REPULSION_CONSTANT), "Shark repulsion constant")
+        ("hunt", boost::program_options::value<float>(&HUNT_CONSTANT), "Hunt constant");
+
+
+    // Parse the command line arguments
+    boost::program_options::variables_map vm;
+    boost::program_options::store(boost::program_options::parse_command_line(argc, argv, desc), vm);
+    boost::program_options::notify(vm);
+
+    // Print usage message for all options when the help option is provided
+    if (vm.count("help")) {
+        std::cout << desc << std::endl;
+        help = true;
+    }
+}
 
 glm::vec2 getRandomPlace(int mapWidth, int mapHeight) {
     return {(float)(rand() % mapWidth), (float)(rand() % mapHeight)};
@@ -163,7 +194,7 @@ public:
             }
         }
 
-        // check if fish does not exceed its max speed 
+        // check if fish does not exceed its max speed
         if (glm::length(this->dir) > fish_max_speed) {
             this->dir /= (glm::length(this->dir) / fish_max_speed);
         }
@@ -380,7 +411,7 @@ public:
         if (debug) {
             // complete json object
             log = {
-                {"scene", 
+                {"scene",
                     {
                         {"width", WIDTH},
                         {"height", HEIGHT}
@@ -440,9 +471,13 @@ public:
     }
 };
 
-int main() {
-    // TODO: add CLI arguments and parse them, instead of defining model parameters
+int main(int argc, char** argv) {
     // as constants at the beginning
+    parse_arguments(argc, argv);
+
+    // if help was printed, end program
+    if (help)
+        return 0;
 
     // set SCENE variables
     const int num_fish = 750,
