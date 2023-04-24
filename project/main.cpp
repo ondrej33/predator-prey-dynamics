@@ -13,36 +13,48 @@
 
 using namespace std;
 
-// define scene constants
-const int WIDTH = 600;
-const int HEIGHT = 600;
+// We have two types of model parameters:
 
-// define MODEL PARAMETERS - constants to multiply various forces
-// these (their subset) can be used for parameter optimisation
+// 1) OPTIMIZABLE MODEL PARAMETERS - these will be used for parameter optimisation
+// their values can be given via CLI arguments
+// basically factors to multiply various forces of FISH
 float FISH_MOMENTUM_CONSTANT = 0.75;
-float SHARK_MOMENTUM_CONSTANT = 1.;
 float ALIGNMENT_CONSTANT = 0.2;
 float COHESION_CONSTANT = 0.05;
 float SEPARATION_CONSTANT = 20.;
 float SHARK_REPULSION_CONSTANT = 10.;
-float HUNT_CONSTANT = 0.5;
 
-bool help=false;
+// 2) FIXED MODEL PARAMETERS - similar, but not to be optimized via evolution
+// mostly shark parameters, or scene params
+constexpr int WIDTH = 500;            // scene width
+constexpr int HEIGHT = 500;           // scene height
+constexpr int NUM_STEPS = 1000;       // number of steps to simulate
+constexpr int NUM_FISH = 500;         // total number of fish
+constexpr int NUM_SHARKS = 3;         // number of sharks
+constexpr int FISH_SENSE_DIST = 25;   // distance for fish to sense neighbors
+constexpr int SHARK_SENSE_DIST = 50;  // distance for shark to sense neighbors
+constexpr int FISH_MAX_SPEED = 5;     // maximal speed of fish
+constexpr int SHARK_MAX_SPEED = 6;    // maximal speed of sharks
+constexpr int SHARK_KILL_RADIUS = 15; // distance for which shark can kill
+constexpr float SHARK_MOMENTUM_CONSTANT = 1.;
+constexpr float HUNT_CONSTANT = 0.5;
+constexpr bool WALL = true;
 
+// also help/debug parameters to enable help/debug messages or logs
+bool debug = true; // this enables printing + logging to json
+bool help = false;
 
 void parse_arguments(int argc, char** argv) {
     // Define the command line options
     boost::program_options::options_description desc("Allowed options");
     desc.add_options()
         ("help", "prints help")
+        ("debug", boost::program_options::value<bool>(&debug), "Enable prints for progress")
         ("fish-momentum", boost::program_options::value<float>(&FISH_MOMENTUM_CONSTANT), "Momentum constant for fish")
-        ("shark-momentum", boost::program_options::value<float>(&SHARK_MOMENTUM_CONSTANT), "Momentum constant for sharks")
         ("alignment", boost::program_options::value<float>(&ALIGNMENT_CONSTANT), "Alignment constant")
         ("cohesion", boost::program_options::value<float>(&COHESION_CONSTANT), "Cohesion constant")
         ("separation", boost::program_options::value<float>(&SEPARATION_CONSTANT), "Separation constant")
-        ("shark-repulsion", boost::program_options::value<float>(&SHARK_REPULSION_CONSTANT), "Shark repulsion constant")
-        ("hunt", boost::program_options::value<float>(&HUNT_CONSTANT), "Hunt constant");
-
+        ("shark-repulsion", boost::program_options::value<float>(&SHARK_REPULSION_CONSTANT), "Shark repulsion constant");
 
     // Parse the command line arguments
     boost::program_options::variables_map vm;
@@ -94,6 +106,7 @@ bool isFishOutOfBorders(glm::vec2 fishPosition, int canvasWidth, int canvasHeigh
     return (fishPosition.x < 0 || fishPosition.x > canvasWidth || fishPosition.y < 0 || fishPosition.y > canvasHeight);
 }
 
+template<int fish_sense_dist, int fish_max_speed, bool wall>
 class Fish {
 public:
     // first Width, then Height
@@ -108,11 +121,10 @@ public:
         this->dir = getRandomDirection();
     }
 
-    void step(vector<Fish> & neighbours, const vector<glm::vec2>& sharks_pos, int fish_sense_dist, bool wall, float fish_max_speed) {
+    void step(vector<Fish> & neighbours, const vector<glm::vec2>& sharks_pos) {
         // when it is dead, do nothing
         if (!alive)
             return;
-
 
         // compute average angle, average position and average distance from neighbours
         // avg angle for alignment, avg pos for cohesion, avg dist for separation
@@ -205,27 +217,29 @@ public:
 };
 
 
+template<int shark_sense_dist, int shark_max_speed, int shark_kill_radius,
+         int fish_sense_dist, int fish_max_speed, bool wall>
 class Shark {
 public:
+    using Fish_t = Fish<fish_sense_dist, fish_max_speed, wall>;
+
     // first Width, then Height
     glm::vec2 pos;
     glm::vec2 dir;
     int id;
-    int kill_radius;
 
-    Shark(int id, int shark_kill_radius) {
+    Shark(int id) {
         this->id = id;
-        this->kill_radius = shark_kill_radius;
         this->pos = getRandomPlace(WIDTH, HEIGHT);
         this->dir = getRandomDirection();
     };
 
-    void step(vector<Fish> & neighbours, bool wall, int shark_max_speed, int shark_sense_dist) {
+    void step(vector<Fish_t> & neighbours) {
 
         // compute the average position of neighbouring fish
         int N = 0;
         auto avg_p = glm::vec2(0.0f);
-        for (Fish n : neighbours) {
+        for (Fish_t n : neighbours) {
             avg_p += n.pos;
             N++;
         }
@@ -278,53 +292,35 @@ public:
 };
 
 
+template<int width, int height, int num_steps, int num_fish, int num_sharks,
+         int fish_sense_dist, int shark_sense_dist, int shark_kill_radius,
+         int fish_max_speed, int shark_max_speed, bool wall>
 class Scene {
 private:
-    int width;
-    int height;
-    int num_fish;
-    int num_sharks;
-    vector<Fish> swarm;
-    vector<Shark> sharks;
-    int fish_sense_dist; // distance for fish senses
-    int shark_sense_dist; // distance for shark senses
-    int shark_kill_radius;
-    int shark_max_speed;
-    float fish_max_speed;
-    bool wall;
-    int num_steps;
+    using Fish_t = Fish<fish_sense_dist, fish_max_speed, wall>;
+    using Shark_t = Shark<shark_sense_dist, shark_max_speed, shark_kill_radius, fish_sense_dist, fish_max_speed, wall>;
+
+    vector<Fish_t> swarm;
+    vector<Shark_t> sharks;
 
 public:
-    Scene(int width, int height, int num_fish, int fish_sense_dist, int shark_sense_dist, int num_sharks,
-          bool wall, int shark_kill_radius, int shark_max_speed, float fish_max_speed, int num_steps) {
-        this->width = width;
-        this->height = height;
-        this->num_fish = num_fish;
-        this->num_sharks = num_sharks;
-        this->fish_sense_dist = fish_sense_dist;
-        this->shark_sense_dist = shark_sense_dist;
-        this->wall = wall;
-        this->shark_kill_radius = shark_kill_radius;
-        this->shark_max_speed = shark_max_speed;
-        this->fish_max_speed = fish_max_speed;
-        this->num_steps = num_steps;
-
+    Scene() {
         // generate fish
-        for (int i=0; i < this->num_fish; i ++) {
-            swarm.emplace_back(Fish(i));
+        for (int i=0; i < num_fish; i ++) {
+            swarm.emplace_back(Fish_t(i));
         }
 
         // generate sharks
-        for (int i = 0; i < this->num_sharks; i++)
-            sharks.emplace_back(Shark(i, this->shark_kill_radius));
+        for (int i = 0; i < num_sharks; i++)
+            sharks.emplace_back(Shark_t(i));
     }
 
     // get neighbors for prey fish up to certain distance
-    vector<Fish> getFishNeighbours(Fish fish) {
-        vector<Fish> neighbours;
+    vector<Fish_t> getFishNeighbours(Fish_t fish) {
+        vector<Fish_t> neighbours;
 
         for (auto f: swarm){
-            if (f.alive && glm::distance(fish.pos, f.pos)<= (float)this->fish_sense_dist) {
+            if (f.alive && glm::distance(fish.pos, f.pos)<= (float)fish_sense_dist) {
                 neighbours.push_back(f);
             }
         }
@@ -333,11 +329,11 @@ public:
     }
 
     // get neighbors for predator shark up to certain distance
-    vector<Fish> getFishPrey(const Shark& s) {
-        vector<Fish> neighbours;
+    vector<Fish_t> getFishPrey(const Shark_t& s) {
+        vector<Fish_t> neighbours;
 
         for (const auto& f: swarm){
-            if (f.alive && glm::distance(s.pos, f.pos)<= (float)this->shark_sense_dist) {
+            if (f.alive && glm::distance(s.pos, f.pos)<= (float)shark_sense_dist) {
                 neighbours.push_back(f);
             }
         }
@@ -346,10 +342,10 @@ public:
     }
 
     // mark eaten fish as dead and return them
-    vector<Fish> getEatenFish(const Shark& s) {
-        vector<Fish> eatenFish;
+    vector<Fish_t> getEatenFish(const Shark_t& s) {
+        vector<Fish_t> eatenFish;
         for (auto& f: swarm) {
-            if (f.alive && glm::distance(s.pos, f.pos) <= (float)s.kill_radius) {
+            if (f.alive && glm::distance(s.pos, f.pos) <= (float)shark_kill_radius) {
                 f.alive = false;
                 eatenFish.push_back(f);
             }
@@ -359,13 +355,13 @@ public:
 
     // FUnction to wrap outer boundaries of the canvas using "cyclic" boundaries
     void wrap(float& x, float& y) {
-        if (x < 0) x += this->width;
-        if (y < 0) y += this->height;
-        if (x >= this->width) x -= this->width;
-        if (y >= this->height) y -= this->height;
+        if (x < 0) x += width;
+        if (y < 0) y += height;
+        if (x >= width) x -= width;
+        if (y >= height) y -= height;
     }
 
-    void simulate(int steps, const string& output_filepath, bool debug) {
+    void simulate(int steps, const string& output_filepath) {
         nlohmann::json log;
         vector<nlohmann::json> steps_j;
         size_t fish_eaten_total = 0;
@@ -375,12 +371,12 @@ public:
 
             // move fish
             for (auto& f: swarm) {
-                vector<Fish> neighbours = getFishNeighbours(f);
+                vector<Fish_t> neighbours = getFishNeighbours(f);
                 vector<glm::vec2> sharks_position;
-                std::transform(sharks.begin(), sharks.end(), std::back_inserter(sharks_position), [](const Shark s){
+                std::transform(sharks.begin(), sharks.end(), std::back_inserter(sharks_position), [](const Shark_t s){
                     return s.pos;
                 });
-                f.step(neighbours, sharks_position, this->fish_sense_dist, this->wall, this->fish_max_speed);
+                f.step(neighbours, sharks_position);
                 wrap(f.pos[0], f.pos[1]);
             }
 
@@ -388,12 +384,12 @@ public:
             size_t eaten_fish_counter = 0;
             for (auto &s: this->sharks) {
                 // move shark
-                vector<Fish> prey_neighbours = getFishPrey(s);
-                s.step(prey_neighbours, this->wall, this->shark_max_speed, this->shark_sense_dist);
+                vector<Fish_t> prey_neighbours = getFishPrey(s);
+                s.step(prey_neighbours);
                 wrap(s.pos[0], s.pos[1]);
 
                 // label and count eaten fish
-                vector<Fish> eaten_fish = getEatenFish(s);
+                vector<Fish_t> eaten_fish = getEatenFish(s);
                 eaten_fish_counter += eaten_fish.size();
             }
             if (eaten_fish_counter > 0) {
@@ -413,11 +409,11 @@ public:
             log = {
                 {"scene",
                     {
-                        {"width", WIDTH},
-                        {"height", HEIGHT}
+                        {"width", width},
+                        {"height", height}
                     }
                 },
-                {"stepsTotal", this->num_steps},
+                {"stepsTotal", num_steps},
                 {"steps", steps_j}
             };
 
@@ -479,44 +475,24 @@ int main(int argc, char** argv) {
     if (help)
         return 0;
 
-    // set SCENE variables
-    const int num_fish = 750,
-            fish_sense_dist = 25,
-            shark_sense_dist = 50,
-            shark_kill_radius = 15,
-            num_steps = 2000,
-            num_sharks = 3,
-            shark_max_speed = 6,
-            fish_max_speed = 5;
-
-    bool debug = true; // this enables printing + logging to json
-    bool wall = true;
     const string output_filepath = "output.json";
 
     // =============================
 
-    std::cout << "Simulation starts." << std::endl;
+    if (debug) {
+        std::cout << "Simulation starts." << std::endl;
+    }
 
     // Start measuring time
     std::clock_t start = std::clock();
 
     // setup Scene
-    shared_ptr<Scene> scene = make_shared<Scene>(
-        WIDTH,
-        HEIGHT,
-        num_fish,
-        fish_sense_dist,
-        shark_sense_dist,
-        num_sharks,
-        wall,
-        shark_kill_radius,
-        shark_max_speed,
-        fish_max_speed,
-        num_steps
-    );
+    Scene scene = Scene<WIDTH, HEIGHT, NUM_STEPS, NUM_FISH, NUM_SHARKS, 
+                        FISH_SENSE_DIST, SHARK_SENSE_DIST, SHARK_KILL_RADIUS,
+                        FISH_MAX_SPEED, SHARK_MAX_SPEED, WALL>();
 
     // simulation
-    scene->simulate(num_steps, output_filepath, debug);
+    scene.simulate(NUM_STEPS, output_filepath);
 
     // Stop measuring time
     std::clock_t end = std::clock();
@@ -525,8 +501,10 @@ int main(int argc, char** argv) {
     double elapsed_time = static_cast<double>(end - start) / CLOCKS_PER_SEC;
 
     // Print the elapsed time
-    std::cout << "Simulation ends" << std::endl;
-    std::cout << "Elapsed time: " << elapsed_time << " seconds." << std::endl;
+    if (debug) {
+        std::cout << "Simulation ends" << std::endl;
+        std::cout << "Elapsed time: " << elapsed_time << " seconds." << std::endl;
+    }
 
     return 0;
 }

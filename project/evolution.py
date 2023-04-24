@@ -1,37 +1,80 @@
 import argparse
 from datetime import datetime
-import random
+from random import uniform, seed
+import subprocess
+from typing import TypeAlias
+import time
+from multiprocessing import Pool
+from functools import partial
 
 
-def generate_individual():
-    """Randomly generate an individual of size `target_len`."""
-    # TODO
-    pass
+CHROMOSOME_LENGTH = 5
+Individual: TypeAlias = list[float]
 
 
+def generate_individual(individual_len: int) -> Individual:  
+    """Randomly generate an individual of size `chromosome_len`."""
+    return [uniform(0, 20) for _ in range(individual_len)]
 
-def generate_population():
+
+def generate_population(
+        num_population: int, 
+        individual_len: int,
+        ) -> list[Individual]:
     """Randomly generate whole population of size `num_individuals`."""
-    # TODO
-    pass
+    return [generate_individual(individual_len) for _ in range(num_population)]
 
 
-def eval_individual():
-    """Evaluate fitness of an `individual`"""
-    # TODO
-    pass
+def get_simulation_result(individual: Individual) -> int:
+    """Run the simulation with individual's parameters as arguments"""
+    
+    output = subprocess.run([
+        './cpp_simulation', 
+        '--debug', 'false',
+        "--fish-momentum", str(individual[0]),
+        "--alignment", str(individual[1]),
+        "--cohesion", str(individual[2]),
+        "--separation", str(individual[3]),
+        "--shark-repulsion", str(individual[4]),
+        ], stdout=subprocess.PIPE)
+    output = output.stdout.decode("utf-8").strip()
+
+    # output is in form "TOTAL FISH EATEN: N" - return the number
+    return int(output.split()[-1])
 
 
-def eval_population():
+def eval_individual(
+        individual: Individual, 
+        simulations_per_indiv: int
+        ) -> float:
+    """
+    Evaluate fitness of a `individual`.
+    That means run the simulation `simulations_per_indiv` times, and take average.
+    We will run them in parallel.
+    """
+    # run all simulations in parallel
+    with Pool(simulations_per_indiv) as pool:
+        async_results = [pool.apply_async(get_simulation_result, args=([individual])) for _ in range(simulations_per_indiv)]
+        results = [ar.get() for ar in async_results]
+        return sum(results) / simulations_per_indiv
+    
+
+def eval_population(
+        population: list[Individual], 
+        simulations_per_indiv: int
+        ) -> list[tuple[Individual, float]]:
     """Evaluate fitness of whole population, return list of tuples <individual, fitness>."""
-    # TODO
-    pass
+    return [(indiv, eval_individual(indiv, simulations_per_indiv)) for indiv in population]
 
 
-def get_fittest_individual():
-    """Return the fittest individual from the population."""
-    # TODO
-    pass
+def get_fittest_individual(
+        population_with_fitness: list[tuple[Individual, float]]
+        ) -> tuple[Individual, float]:
+    """
+    Return the fittest individual from the population (tuples <indiv, fitness>).
+    That means the individual with least killed fish.
+    """
+    return min(population_with_fitness, key=lambda x: x[1])
 
 
 def selection_step():
@@ -77,19 +120,22 @@ def evolution(
     population_size,
     generations_max,
     simulations_per_indiv,
+    len_individual,
     debug=False,
 ):
     """Run the whole evolution process."""
+    start = time.time()
 
-    # TODO: generate the population and evaluate it
-    generate_population()
-    eval_population()
+    # generate the population and evaluate it
+    population = generate_population(population_size, len_individual)
+    population_with_fitness = eval_population(population, simulations_per_indiv)
+    # get the best individual of the new population and log it
+    print(f"GEN 0, TIME {time.time() - start},", get_fittest_individual(population_with_fitness), flush=True)
 
-    # TODO: initialize stopping condition and progress check variables
     iteration = 0
-    stop_condition = generations_max == iteration
+    while iteration < generations_max:
+        iteration += 1
 
-    while not stop_condition:
         # TODO: select parents from the population
         selection_step()
 
@@ -98,17 +144,28 @@ def evolution(
 
         # TODO: replace generations and evaluate the new individuals
         replacement_step()
+ 
+        # TODO: evaluate new population (now just placeholder)
+        # TODO: only eval individuals from the new population
+        population_with_fitness = eval_population(population, simulations_per_indiv)
 
         # TODO: get the best individual of the new population and log it
-        get_fittest_individual()
+        print(f"GEN {iteration}, TIME {time.time() - start},", get_fittest_individual(population_with_fitness), flush=True)
 
-        # TODO: update stop condition
-        stop_condition = generations_max == iteration
+    # TODO: summarize and return fittest?
+    end = time.time()
+    print(f"Total time:", end - start)
 
-    pass
 
 
-def main(mutation_prob, population_size, generations_max, simulations_per_indiv, debug=False):
+def main(
+        mutation_prob, 
+        population_size, 
+        generations_max, 
+        simulations_per_indiv, 
+        len_individual,
+        debug=False,
+        ):
     # TODO: prepare some things
     
     # TODO: run evolution
@@ -117,10 +174,11 @@ def main(mutation_prob, population_size, generations_max, simulations_per_indiv,
         population_size, 
         generations_max, 
         simulations_per_indiv,
+        len_individual,
         debug,
     )
     
-    # TODO: sum up results
+    # TODO: sum up the results
     pass
 
 
@@ -134,22 +192,24 @@ if __name__ == "__main__":
 
     # algorithm parameters (all tunable, but with default values)
     parser.add_argument('-m', '--mutation_prob', default=0.02)
-    parser.add_argument('-p', '--population_size', default=100)
-    parser.add_argument('-g', '--generations_max', default=1000)
-    parser.add_argument('-s', '--simulations_per_indiv', default=10)
+    parser.add_argument('-p', '--population_size', default=5) # ideally use 100+
+    parser.add_argument('-g', '--generations_max', default=10) # ideally use 200+
+    parser.add_argument('-s', '--simulations_per_indiv', default=8) # ideally use 10
+    parser.add_argument('-l', '--len_individual', default=5)
     parser.add_argument('-r', '--random_seed', default=False)
     parser.add_argument('-d', '--debug', default=True)
     args = parser.parse_args()
 
     if args.random_seed:
-        random.seed(random.seed(datetime.now().timestamp()))
+        seed(datetime.now().timestamp())
     else:
-        random.seed(42)
+        seed(42)
 
     main(
         args.mutation_prob, 
         args.population_size, 
         args.generations_max, 
         args.simulations_per_indiv,
+        args.len_individual,
         args.debug,
     )
