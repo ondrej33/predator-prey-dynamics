@@ -26,10 +26,10 @@ float SHARK_REPULSION_CONSTANT = 10.;
 
 // 2) FIXED MODEL PARAMETERS - similar, but not to be optimized via evolution
 // mostly shark parameters, or scene params
-constexpr int WIDTH = 500;            // scene width
-constexpr int HEIGHT = 500;           // scene height
+constexpr int WIDTH = 400;            // scene width
+constexpr int HEIGHT = 400;           // scene height
 constexpr int NUM_STEPS = 1000;       // number of steps to simulate
-constexpr int NUM_FISH = 500;         // total number of fish
+constexpr int NUM_FISH = 400;         // total number of fish
 constexpr int NUM_SHARKS = 3;         // number of sharks
 constexpr int FISH_SENSE_DIST = 25;   // distance for fish to sense neighbors
 constexpr int SHARK_SENSE_DIST = 50;  // distance for shark to sense neighbors
@@ -37,7 +37,8 @@ constexpr int FISH_MAX_SPEED = 5;     // maximal speed of fish
 constexpr int SHARK_MAX_SPEED = 6;    // maximal speed of sharks
 constexpr int SHARK_KILL_RADIUS = 15; // distance for which shark can kill
 constexpr float SHARK_MOMENTUM_CONSTANT = 1.;
-constexpr float HUNT_CONSTANT = 0.5;
+constexpr float SHARK_SEARCH_CONSTANT = 2.;
+constexpr float HUNT_CONSTANT = 1.;
 constexpr bool WALL = true;
 
 // also help/debug parameters to enable help/debug messages or logs
@@ -68,8 +69,9 @@ void parse_arguments(int argc, char** argv) {
     }
 }
 
-glm::vec2 getRandomPlace(int mapWidth, int mapHeight) {
-    return {(float)(rand() % mapWidth), (float)(rand() % mapHeight)};
+template<int canvasWidth, int canvasHeight>
+glm::vec2 getRandomPlace() {
+    return {(float)(rand() % canvasWidth), (float)(rand() % canvasHeight)};
 }
 
 glm::vec2 getRandomDirection() {
@@ -77,7 +79,8 @@ glm::vec2 getRandomDirection() {
             (float)(1 - 2 * (rand() % 2)) * (float) (rand() % 1000000) / 1000000};
 }
 
-glm::vec2 getNearestBorderPoint(glm::vec2 fishPosition, int canvasWidth, int canvasHeight) {
+template<int canvasWidth, int canvasHeight>
+glm::vec2 getNearestBorderPoint(glm::vec2 fishPosition) {
     glm::vec2 nearestPoint;
 
     // Find the closest border to the fish
@@ -102,7 +105,8 @@ glm::vec2 getNearestBorderPoint(glm::vec2 fishPosition, int canvasWidth, int can
     return nearestPoint;
 }
 
-bool isFishOutOfBorders(glm::vec2 fishPosition, int canvasWidth, int canvasHeight) {
+template<int canvasWidth, int canvasHeight>
+bool isFishOutOfBorders(glm::vec2 fishPosition) {
     return (fishPosition.x < 0 || fishPosition.x > canvasWidth || fishPosition.y < 0 || fishPosition.y > canvasHeight);
 }
 
@@ -117,7 +121,7 @@ public:
 
     Fish(int id) {
         this->id = id;
-        this->pos = getRandomPlace(WIDTH, HEIGHT);
+        this->pos = getRandomPlace<WIDTH, HEIGHT>();
         this->dir = getRandomDirection();
     }
 
@@ -192,7 +196,7 @@ public:
         // wall repulsion, if it is enabled
         if (wall) {
             // add wall repulsion vector (from the nearest wall point)
-            glm::vec2 nearest_wall = getNearestBorderPoint(this->pos, WIDTH, HEIGHT);
+            glm::vec2 nearest_wall = getNearestBorderPoint<WIDTH, HEIGHT>(this->pos);
             if (glm::distance(nearest_wall, this->pos) <= (float)fish_sense_dist) {
                 glm::vec2 wall_repulsion_vector = this->pos - nearest_wall;
                 wall_repulsion_vector /= glm::length(wall_repulsion_vector); // divide by its magnitude
@@ -201,7 +205,7 @@ public:
             }
 
             // cant go through the wall
-            if (isFishOutOfBorders(this->pos + this->dir, WIDTH, HEIGHT)) {
+            if (isFishOutOfBorders<WIDTH, HEIGHT>(this->pos + this->dir)) {
                 this->dir *= -1;
             }
         }
@@ -230,7 +234,7 @@ public:
 
     Shark(int id) {
         this->id = id;
-        this->pos = getRandomPlace(WIDTH, HEIGHT);
+        this->pos = getRandomPlace<WIDTH, HEIGHT>();
         this->dir = getRandomDirection();
     };
 
@@ -254,12 +258,13 @@ public:
             std::uniform_real_distribution<float> dis(-0.5f, 0.5f);
             float avg_angle = dis(gen);
             auto random_vec = glm::vec2(cos(avg_angle), sin(avg_angle));
+            random_vec *= SHARK_SEARCH_CONSTANT;
             this->dir += random_vec;
         } else {
             // otherwise go for the average position of neighbouring fish
             avg_p /= static_cast<float>(N);
             glm::vec2 hunt_vector = avg_p - this->pos;
-            hunt_vector /= glm::length2(hunt_vector); // divide by it magnitude
+            hunt_vector /= glm::length2(hunt_vector); // divide by its squared magnitude
             hunt_vector *= HUNT_CONSTANT;
             this->dir += hunt_vector;
         }
@@ -267,7 +272,7 @@ public:
         // wall repulsion, if it is enabled
         if (wall) {
             // add wall repulsion vector
-            glm::vec2 nearest_wall = getNearestBorderPoint(this->pos, WIDTH, HEIGHT);
+            glm::vec2 nearest_wall = getNearestBorderPoint<WIDTH, HEIGHT>(this->pos);
             if (glm::distance(nearest_wall, this->pos) <= (float)shark_sense_dist) {
                 glm::vec2 wall_repulsion_vec = this->pos - nearest_wall;
                 wall_repulsion_vec /= glm::length(wall_repulsion_vec); // divide by its magnitude
@@ -276,7 +281,7 @@ public:
             }
 
             // cant go trough wall
-            if (isFishOutOfBorders(this->pos + this->dir, WIDTH, HEIGHT)) {
+            if (isFishOutOfBorders<WIDTH, HEIGHT>(this->pos + this->dir)) {
                 this->dir *= -1;
             }
         }
@@ -353,7 +358,8 @@ public:
         return eatenFish;
     }
 
-    // FUnction to wrap outer boundaries of the canvas using "cyclic" boundaries
+    // Function to wrap outer boundaries of the canvas using "cyclic" boundaries
+    // gets a point, returns either same point, or point on opposite side if it "crosses" boundary
     void wrap(float& x, float& y) {
         if (x < 0) x += width;
         if (y < 0) y += height;
@@ -361,12 +367,12 @@ public:
         if (y >= height) y -= height;
     }
 
-    void simulate(int steps, const string& output_filepath) {
+    void simulate(const string& output_filepath) {
         nlohmann::json log;
         vector<nlohmann::json> steps_j;
         size_t fish_eaten_total = 0;
 
-        for (int i = 0; i < steps; i++){
+        for (int i = 0; i < num_steps; i++){
             if (debug) std::cout << "step #" << i;
 
             // move fish
@@ -492,7 +498,7 @@ int main(int argc, char** argv) {
                         FISH_MAX_SPEED, SHARK_MAX_SPEED, WALL>();
 
     // simulation
-    scene.simulate(NUM_STEPS, output_filepath);
+    scene.simulate(output_filepath);
 
     // Stop measuring time
     std::clock_t end = std::clock();

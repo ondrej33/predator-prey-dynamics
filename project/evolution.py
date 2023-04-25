@@ -192,11 +192,11 @@ if __name__ == "__main__":
 
     # algorithm parameters (all tunable, but with default values)
     parser.add_argument('-m', '--mutation_prob', default=0.02)
-    parser.add_argument('-p', '--population_size', default=5) # ideally use 100+
+    parser.add_argument('-p', '--population_size', default=10) # ideally use 100+
     parser.add_argument('-g', '--generations_max', default=10) # ideally use 200+
     parser.add_argument('-s', '--simulations_per_indiv', default=8) # ideally use 10
     parser.add_argument('-l', '--len_individual', default=5)
-    parser.add_argument('-r', '--random_seed', default=False)
+    parser.add_argument('-r', '--random_seed', default=True)
     parser.add_argument('-d', '--debug', default=True)
     args = parser.parse_args()
 
