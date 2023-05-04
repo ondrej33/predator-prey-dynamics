@@ -92,7 +92,6 @@ function render_step(output) {
     // render sharks
     output.steps[i].sharks.forEach(el => {
         push();
-        fill('blue');
 
         // translate to where you want the center of the ellipse to be
         translate(el.x, el.y);
@@ -101,11 +100,20 @@ function render_step(output) {
         rotate(-el.dir);
 
         // draw the ellipse at the origin
+        fill('blue');
         ellipse(0, 0, 30, 50);
 
         // draw a "mouth" of the shark
         fill('#d42a1e');
         arc(0, 0, 30, 50, HALF_PI - QUARTER_PI / 2, HALF_PI + QUARTER_PI / 2, PIE);
+
+
+        // draw a SHARK_SENSE_DIST without their blind spot
+        noFill();
+        stroke("green")
+        let rad = radians(output.shark_blind_angle_back);
+        arc(0, 0, output.shark_sense_dist, output.shark_sense_dist, -HALF_PI + rad/2, HALF_PI + PI - rad/2, PIE);
+
         pop();
     });
 

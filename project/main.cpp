@@ -1,15 +1,14 @@
-#include <iostream>
 #include <vector>
+#include <iostream>
 #include <cmath>
-#include <memory>
 #include <ctime>
 #include <nlohmann/json.hpp>
 #include <random>
 #include <fstream>
 #include "glm/glm/glm.hpp"
 #include "glm/glm/gtx/norm.hpp"
+#include "glm/glm/gtx/vector_angle.hpp"
 #include <boost/program_options.hpp>
-#include <unordered_set>
 
 
 using namespace std;
@@ -27,22 +26,24 @@ float SHARK_REPULSION_CONSTANT = 10.;
 
 // 2) FIXED MODEL PARAMETERS - similar, but not to be optimized via evolution
 // mostly shark parameters, or scene params
-constexpr int WIDTH = 400;            // scene width
-constexpr int HEIGHT = 400;           // scene height
-constexpr int NUM_STEPS = 1000;       // number of steps to simulate
-constexpr int NUM_FISH = 400;         // total number of fish
-constexpr int NUM_SHARKS = 3;         // number of sharks
-constexpr int FISH_SENSE_DIST = 25;   // distance for fish to sense neighbors
-constexpr int SHARK_SENSE_DIST = 50;  // distance for shark to sense neighbors
-constexpr int FISH_MAX_SPEED = 5;     // maximal speed of fish
-constexpr int SHARK_MAX_SPEED = 6;    // maximal speed of sharks
-constexpr int SHARK_KILL_RADIUS = 15; // distance for which shark can kill
-constexpr float SHARK_MOMENTUM_CONSTANT = 1.;
-constexpr float SHARK_SEARCH_CONSTANT = 2.;
-constexpr float HUNT_CONSTANT = 1.;
-constexpr bool WALL = true;
-constexpr int FISH_DIM_ELLIPSE_X = 5;
-constexpr int FISH_DIM_ELLIPSE_Y = 9;
+constexpr int WIDTH = 400;                      // scene width
+constexpr int HEIGHT = 400;                     // scene height
+constexpr int NUM_STEPS = 1000;                 // number of steps to simulate
+constexpr int NUM_FISH = 100;                   // total number of fish
+constexpr int NUM_SHARKS = 1;                   // number of sharks
+constexpr int FISH_SENSE_DIST = 25;             // distance for fish to sense neighbors
+constexpr int SHARK_SENSE_DIST = 100;            // distance for shark to sense neighbors
+constexpr int FISH_MAX_SPEED = 5;               // maximal speed of fish
+constexpr int SHARK_MAX_SPEED = 6;              // maximal speed of sharks
+constexpr int SHARK_KILL_RADIUS = 15;           // distance for which shark can kill
+constexpr float SHARK_MOMENTUM_CONSTANT = 1.;   //
+constexpr float SHARK_SEARCH_CONSTANT = 2.;     // constant which manages behaviour of shark when no fish is around in his SENSE_DIST
+constexpr float HUNT_CONSTANT = 10.;             //
+constexpr bool WALL = false;                     // if true, applies the walls around the canvas, else applies scene warping
+constexpr int FISH_DIM_ELLIPSE_X = 5;           // size of a fish (defined by ellipse) in x-axis
+constexpr int FISH_DIM_ELLIPSE_Y = 9;           // size of a fish (defined by ellipse) in y-axis
+constexpr int NUM_FOOD = 50;                    // number of food in simulation
+constexpr int SHARK_BLIND_ANGLE_BACK = 40;      // the angle (in degrees) of a shark that he cannot see. Middle of the blind spot angle is on the back of the shark
 
 // also help/debug parameters to enable help/debug messages or logs
 bool debug = true; // this enables printing + logging to json
@@ -315,12 +316,12 @@ public:
         this->dir = getRandomDirection();
     };
 
-    void step(vector<Fish_t> & neighbours) {
+    void step(vector<Fish_t> & visible_neighbours) {
 
         // compute the average position of neighbouring fish
         int N = 0;
         auto avg_p = glm::vec2(0.0f);
-        for (Fish_t n : neighbours) {
+        for (Fish_t n : visible_neighbours) {
             avg_p += n.pos;
             N++;
         }
@@ -329,7 +330,7 @@ public:
         this->dir = this->dir * SHARK_MOMENTUM_CONSTANT;
 
         if (N == 0) {
-            // if no neighbours, shift randomly for a bit
+            // if no visible_neighbours, shift randomly for a bit
             std::random_device rd;
             std::mt19937 gen(rd());
             std::uniform_real_distribution<float> dis(-0.5f, 0.5f);
@@ -376,7 +377,7 @@ public:
 
 template<int width, int height, int num_steps, int num_fish, int num_sharks,
         int fish_sense_dist, int shark_sense_dist, int shark_kill_radius,
-        int fish_max_speed, int shark_max_speed, bool wall, int fish_dim_ellipse_x, int fish_dim_ellipse_y>
+        int fish_max_speed, int shark_max_speed, bool wall, int fish_dim_ellipse_x, int fish_dim_ellipse_y, int num_food>
 class Scene {
 private:
     using Fish_t = Fish<fish_sense_dist, fish_max_speed, wall, fish_dim_ellipse_x, fish_dim_ellipse_y>;
@@ -398,7 +399,7 @@ public:
             sharks.emplace_back(Shark_t(i));
 
         // generate food
-        for (int i = 0; i < 50; i++) // todo redo it to variable parameter
+        for (int i = 0; i < num_food; i++) // todo redo it to variable parameter
             food.insert(Food(i));
     }
 
@@ -415,13 +416,29 @@ public:
         return neighbours;
     }
 
+    bool isInBlindSpot(glm::vec2 fishPos, glm::vec2 sharkPos, glm::vec2 sharkDir, float blindSpotAngleDeg) {
+        // Calculate the vector from the shark to the fish
+        glm::vec2 sharkToFish = fishPos - sharkPos;
+
+        // Calculate the angle between the shark's direction and the vector from the shark to the fish
+        float angle = glm::angle(sharkDir, sharkToFish);
+        
+        // Convert the blind spot angle from degrees to radians
+        float blindSpotAngleRad = glm::radians(blindSpotAngleDeg);
+
+        // If the angle is greater than or equal to the blind spot angle, the fish is in the blind spot
+        return angle >= glm::pi<float>() - blindSpotAngleRad / 2;
+    }
+
     // get neighbors for predator shark up to certain distance
     vector<Fish_t> getFishPrey(const Shark_t& s) {
         vector<Fish_t> neighbours;
 
         for (const auto& f: swarm){
-            if (f.alive && glm::distance(s.pos, f.pos)<= (float)shark_sense_dist) {
-                neighbours.push_back(f);
+            if (f.alive &&
+                glm::distance(s.pos, f.pos)<= (float)shark_sense_dist &&
+                !isInBlindSpot(f.pos, s.pos, s.dir , SHARK_BLIND_ANGLE_BACK)) {
+                    neighbours.push_back(f);
             }
         }
 
@@ -504,7 +521,9 @@ public:
                     {"stepsTotal", num_steps},
                     {"fish_dim_x", fish_dim_ellipse_x},
                     {"fish_dim_y", fish_dim_ellipse_y},
-                    {"steps", steps_j}
+                    {"shark_sense_dist", SHARK_SENSE_DIST},
+                    {"shark_blind_angle_back", SHARK_BLIND_ANGLE_BACK},
+                    {"steps", steps_j},
             };
 
             // save log to json file -- must not forget to delete previous content
@@ -532,7 +551,7 @@ public:
                     {"alive", f.alive},
             };
             swarm_j.emplace_back(fish_j);
-            
+
             if (!f.alive)
                 deadFish ++;
         }
@@ -603,7 +622,7 @@ int main(int argc, char** argv) {
     // setup Scene
     Scene scene = Scene<WIDTH, HEIGHT, NUM_STEPS, NUM_FISH, NUM_SHARKS,
             FISH_SENSE_DIST, SHARK_SENSE_DIST, SHARK_KILL_RADIUS,
-            FISH_MAX_SPEED, SHARK_MAX_SPEED, WALL, FISH_DIM_ELLIPSE_X, FISH_DIM_ELLIPSE_Y>();
+            FISH_MAX_SPEED, SHARK_MAX_SPEED, WALL, FISH_DIM_ELLIPSE_X, FISH_DIM_ELLIPSE_Y, NUM_FOOD>();
 
     // simulation
     scene.simulate(output_filepath);
