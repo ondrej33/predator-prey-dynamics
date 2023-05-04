@@ -29,21 +29,23 @@ float SHARK_REPULSION_CONSTANT = 10.;
 constexpr int WIDTH = 400;                      // scene width
 constexpr int HEIGHT = 400;                     // scene height
 constexpr int NUM_STEPS = 1000;                 // number of steps to simulate
-constexpr int NUM_FISH = 100;                   // total number of fish
+constexpr int NUM_FISH = 400;                   // total number of fish
 constexpr int NUM_SHARKS = 1;                   // number of sharks
 constexpr int FISH_SENSE_DIST = 25;             // distance for fish to sense neighbors
 constexpr int SHARK_SENSE_DIST = 100;            // distance for shark to sense neighbors
 constexpr int FISH_MAX_SPEED = 5;               // maximal speed of fish
 constexpr int SHARK_MAX_SPEED = 6;              // maximal speed of sharks
-constexpr int SHARK_KILL_RADIUS = 15;           // distance for which shark can kill
+constexpr int SHARK_KILL_RADIUS = 10;           // distance for which shark can kill
 constexpr float SHARK_MOMENTUM_CONSTANT = 1.;   //
 constexpr float SHARK_SEARCH_CONSTANT = 2.;     // constant which manages behaviour of shark when no fish is around in his SENSE_DIST
-constexpr float HUNT_CONSTANT = 10.;             //
+constexpr float HUNT_CONSTANT = 40.;             //
 constexpr bool WALL = false;                     // if true, applies the walls around the canvas, else applies scene warping
 constexpr int FISH_DIM_ELLIPSE_X = 5;           // size of a fish (defined by ellipse) in x-axis
 constexpr int FISH_DIM_ELLIPSE_Y = 9;           // size of a fish (defined by ellipse) in y-axis
 constexpr int NUM_FOOD = 50;                    // number of food in simulation
 constexpr int SHARK_BLIND_ANGLE_BACK = 40;      // the angle (in degrees) of a shark that he cannot see. Middle of the blind spot angle is on the back of the shark
+constexpr int SHARK_DIM_ELLIPSE_X = 30;
+constexpr int SHARK_DIM_ELLIPSE_Y = 50;
 
 // also help/debug parameters to enable help/debug messages or logs
 bool debug = true; // this enables printing + logging to json
@@ -153,6 +155,11 @@ float ellipsesOverlapDistance(glm::vec2 center1, glm::vec2 direction1, float wid
     return overlapDistance;
 }
 
+// calculates position of mout hof the shark given the center
+glm::vec2 getMouthFromCenter (glm::vec2 pos, glm::vec2 dir) {
+    return pos + (((float)SHARK_DIM_ELLIPSE_Y/2) / glm::length(dir)) * dir;
+}
+
 class Food {
 public:
     glm::vec2 pos;
@@ -189,7 +196,7 @@ public:
         this->dir = getRandomDirection();
     }
 
-    void step(vector<Fish> & neighbours, const vector<glm::vec2>& sharks_pos) {
+    void step(vector<Fish> & neighbours, const vector<glm::vec2>& sharks_pos, const vector<glm::vec2>& sharks_direction) {
         // when it is dead, do nothing
         if (!alive)
             return;
@@ -247,14 +254,18 @@ public:
         this->dir += separation_vec;
 
         // repulse force from each shark
+        int i = 0;
         for (auto & shark_pos: sharks_pos) {
+            glm::vec2 shark_mouth_position = getMouthFromCenter(shark_pos,sharks_direction[i]);
+
             // add repulsive force from shark if it is near the fish
-            if (glm::distance(shark_pos, this->pos) <= (float) fish_sense_dist) {
-                glm::vec2 shark_repulsion_vec = this->pos - shark_pos;
+            if (glm::distance(shark_mouth_position, this->pos) <= (float) fish_sense_dist) {
+                glm::vec2 shark_repulsion_vec = this->pos - shark_mouth_position;
                 shark_repulsion_vec /= glm::length(shark_repulsion_vec); // divide by magnitude
                 shark_repulsion_vec *= SHARK_REPULSION_CONSTANT;
                 this->dir += shark_repulsion_vec;
             }
+            i++;
         }
 
         // wall repulsion, if it is enabled
@@ -449,7 +460,7 @@ public:
     vector<Fish_t> getEatenFish(const Shark_t& s) {
         vector<Fish_t> eatenFish;
         for (auto& f: swarm) {
-            if (f.alive && glm::distance(s.pos, f.pos) <= (float)shark_kill_radius) {
+            if (f.alive && glm::distance(getMouthFromCenter(s.pos, s.dir), f.pos) <= (float)shark_kill_radius) {
                 f.alive = false;
                 eatenFish.push_back(f);
             }
@@ -481,7 +492,11 @@ public:
                 std::transform(sharks.begin(), sharks.end(), std::back_inserter(sharks_position), [](const Shark_t s){
                     return s.pos;
                 });
-                f.step(neighbours, sharks_position);
+                vector<glm::vec2> sharks_direction;
+                std::transform(sharks.begin(), sharks.end(), std::back_inserter(sharks_direction), [](const Shark_t s){
+                    return s.dir;
+                });
+                f.step(neighbours, sharks_position, sharks_direction);
                 wrap(f.pos[0], f.pos[1]);
             }
 
@@ -521,6 +536,9 @@ public:
                     {"stepsTotal", num_steps},
                     {"fish_dim_x", fish_dim_ellipse_x},
                     {"fish_dim_y", fish_dim_ellipse_y},
+                    {"shark_dim_x", SHARK_DIM_ELLIPSE_X},
+                    {"shark_dim_y", SHARK_DIM_ELLIPSE_Y},
+                    {"shark_kill_radius", SHARK_KILL_RADIUS},
                     {"shark_sense_dist", SHARK_SENSE_DIST},
                     {"shark_blind_angle_back", SHARK_BLIND_ANGLE_BACK},
                     {"steps", steps_j},

@@ -3,7 +3,8 @@ let logger = {
     step: 0,
     stepsTotal: 2000 // save steps num to be able to freeze the last step
 }
-
+let frameRateButton1, frameRateButton2;
+let initFrameRate = 30;
 let output;
 let stepCounter;
 fetch('output.json')
@@ -28,8 +29,36 @@ function setup() {
 
             // save max num of steps
             logger.stepsTotal = output.stepsTotal;
+
+            frameRate(initFrameRate);
+            
+            // Create the "Increase Frame Rate" button
+            frameRateButton1 = createButton("Increase Frame Rate");
+            // frameRateButton1.position(10, 10);
+            frameRateButton1.mouseClicked(increaseFrameRate);
+            
+            // Create the "Decrease Frame Rate" button
+            frameRateButton2 = createButton("Decrease Frame Rate");
+            // frameRateButton2.position(10, 40);
+            frameRateButton2.mouseClicked(decreaseFrameRate);
+
+            // create new HTML paragraph element to display dead fish counter
+            frameRateButton = createP("Frame Rate: " + initFrameRate);
+
         })
         .catch(error => console.error(error));
+}
+
+function increaseFrameRate() {
+    let newFrameRate = frameRate() + 5;
+    frameRateButton.html("Frame Rate: " + newFrameRate)
+    frameRate(newFrameRate); // Increase the frame rate by 5 frames per second
+}
+
+function decreaseFrameRate() {
+    let newFrameRate = frameRate() - 5;
+    frameRateButton.html("Frame Rate: " + newFrameRate)
+    frameRate(newFrameRate); // Decrease the frame rate by 5 frames per second
 }
 
 function render_step(output) {
@@ -100,13 +129,17 @@ function render_step(output) {
         rotate(-el.dir);
 
         // draw the ellipse at the origin
-        fill('blue');
-        ellipse(0, 0, 30, 50);
+        // fill('blue');
+        noFill();
+        stroke("blue")
+        ellipse(0, 0, output.shark_dim_x, output.shark_dim_y);
 
-        // draw a "mouth" of the shark
-        fill('#d42a1e');
-        arc(0, 0, 30, 50, HALF_PI - QUARTER_PI / 2, HALF_PI + QUARTER_PI / 2, PIE);
-
+        // // draw a "mouth" of the shark
+        // fill('#d42a1e');
+        // arc(0, 0, 30, 50, HALF_PI - QUARTER_PI / 2, HALF_PI + QUARTER_PI / 2, PIE);
+        noFill();
+        stroke('red')
+        ellipse(0, output.shark_dim_y/2, output.shark_kill_radius * 2, output.shark_kill_radius * 2)
 
         // draw a SHARK_SENSE_DIST without their blind spot
         noFill();
