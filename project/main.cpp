@@ -40,6 +40,8 @@ constexpr float SHARK_MOMENTUM_CONSTANT = 1.;
 constexpr float SHARK_SEARCH_CONSTANT = 2.;
 constexpr float HUNT_CONSTANT = 1.;
 constexpr bool WALL = true;
+constexpr int FISH_DIM_ELLIPSE_X = 5;
+constexpr int FISH_DIM_ELLIPSE_Y = 9;
 
 // also help/debug parameters to enable help/debug messages or logs
 bool debug = true; // this enables printing + logging to json
@@ -49,13 +51,13 @@ void parse_arguments(int argc, char** argv) {
     // Define the command line options
     boost::program_options::options_description desc("Allowed options");
     desc.add_options()
-        ("help", "prints help")
-        ("debug", boost::program_options::value<bool>(&debug), "Enable prints for progress")
-        ("fish-momentum", boost::program_options::value<float>(&FISH_MOMENTUM_CONSTANT), "Momentum constant for fish")
-        ("alignment", boost::program_options::value<float>(&ALIGNMENT_CONSTANT), "Alignment constant")
-        ("cohesion", boost::program_options::value<float>(&COHESION_CONSTANT), "Cohesion constant")
-        ("separation", boost::program_options::value<float>(&SEPARATION_CONSTANT), "Separation constant")
-        ("shark-repulsion", boost::program_options::value<float>(&SHARK_REPULSION_CONSTANT), "Shark repulsion constant");
+            ("help", "prints help")
+            ("debug", boost::program_options::value<bool>(&debug), "Enable prints for progress")
+            ("fish-momentum", boost::program_options::value<float>(&FISH_MOMENTUM_CONSTANT), "Momentum constant for fish")
+            ("alignment", boost::program_options::value<float>(&ALIGNMENT_CONSTANT), "Alignment constant")
+            ("cohesion", boost::program_options::value<float>(&COHESION_CONSTANT), "Cohesion constant")
+            ("separation", boost::program_options::value<float>(&SEPARATION_CONSTANT), "Separation constant")
+            ("shark-repulsion", boost::program_options::value<float>(&SHARK_REPULSION_CONSTANT), "Shark repulsion constant");
 
     // Parse the command line arguments
     boost::program_options::variables_map vm;
@@ -110,7 +112,46 @@ bool isFishOutOfBorders(glm::vec2 fishPosition) {
     return (fishPosition.x < 0 || fishPosition.x > canvasWidth || fishPosition.y < 0 || fishPosition.y > canvasHeight);
 }
 
-template<int fish_sense_dist, int fish_max_speed, bool wall>
+// TODO add possible template
+float ellipsesOverlapDistance(glm::vec2 center1, glm::vec2 direction1, float width1, float height1, glm::vec2 center2, glm::vec2 direction2, float width2, float height2) {
+    // Normalize the direction vectors
+    glm::vec2 normDirection1 = glm::normalize(direction1);
+    glm::vec2 normDirection2 = glm::normalize(direction2);
+
+    // Calculate the rotation angles for each ellipse
+    float rotation1 = glm::degrees(glm::atan(normDirection1.y, normDirection1.x));
+    float rotation2 = glm::degrees(glm::atan(normDirection2.y, normDirection2.x));
+
+    // Calculate the rotation matrices for each ellipse
+    glm::mat2 rotationMatrix1 = glm::mat2(glm::vec2(glm::cos(glm::radians(rotation1)), glm::sin(glm::radians(rotation1))), glm::vec2(-glm::sin(glm::radians(rotation1)), glm::cos(glm::radians(rotation1))));
+    glm::mat2 rotationMatrix2 = glm::mat2(glm::vec2(glm::cos(glm::radians(rotation2)), glm::sin(glm::radians(rotation2))), glm::vec2(-glm::sin(glm::radians(rotation2)), glm::cos(glm::radians(rotation2))));
+
+    // Transform the centers of the ellipses into the coordinate system of ellipse 1
+    glm::vec2 center2Transformed = rotationMatrix1 * (center2 - center1);
+
+    // Calculate the distance between the transformed centers of the two ellipses
+    float distance = glm::length(center2Transformed);
+
+    // Calculate the radii of each ellipse in the transformed coordinate system
+    glm::vec2 radii1 = glm::vec2(width1 / 2.0f, height1 / 2.0f);
+    glm::vec2 radii2 = glm::vec2(width2 / 2.0f, height2 / 2.0f);
+
+    // Transform the radii of ellipse 2 into the coordinate system of ellipse 1
+    glm::vec2 radii2Transformed = rotationMatrix1 * rotationMatrix2 * radii2;
+
+    // Calculate the sum of the radii in the x and y directions
+    glm::vec2 sumRadii = radii1 + radii2Transformed;
+
+    // Calculate the vector from the center of ellipse 1 to the center of ellipse 2 in the transformed coordinate system
+    glm::vec2 centerVector = glm::normalize(center2Transformed);
+
+    // Calculate the projection of the sum of the radii onto the center vector
+    float overlapDistance = glm::dot(sumRadii, centerVector) - distance;
+
+    return overlapDistance;
+}
+
+template<int fish_sense_dist, int fish_max_speed, bool wall, int fish_dim_ellipse_x, int fish_dim_ellipse_y>
 class Fish {
 public:
     // first Width, then Height
@@ -215,6 +256,20 @@ public:
             this->dir /= (glm::length(this->dir) / fish_max_speed);
         }
 
+        // check if fish dimensions does not overlap with other fish
+        for (auto &n: neighbours){
+            float ovrlpDistance = ellipsesOverlapDistance(
+                    this->pos, this->dir,(float) fish_dim_ellipse_x, (float) fish_dim_ellipse_y,
+                    n.pos, n.dir, (float) fish_dim_ellipse_x, (float) fish_dim_ellipse_y);
+            if (ovrlpDistance > 0) {
+                // move direction
+                this->dir *= -0.5; // FIXME?
+            }
+        }
+
+        // TODO adjust the change of direction possible and its momentum (magnitude) - scale direction while turning - if significant turn, there is decrease of momentum
+
+
         // update fish position
         this->pos += this->dir;
     }
@@ -222,10 +277,10 @@ public:
 
 
 template<int shark_sense_dist, int shark_max_speed, int shark_kill_radius,
-         int fish_sense_dist, int fish_max_speed, bool wall>
+        int fish_sense_dist, int fish_max_speed, bool wall, int fish_dim_ellipse_x, int fish_dim_ellipse_y>
 class Shark {
 public:
-    using Fish_t = Fish<fish_sense_dist, fish_max_speed, wall>;
+    using Fish_t = Fish<fish_sense_dist, fish_max_speed, wall, fish_dim_ellipse_x, fish_dim_ellipse_y>;
 
     // first Width, then Height
     glm::vec2 pos;
@@ -298,12 +353,12 @@ public:
 
 
 template<int width, int height, int num_steps, int num_fish, int num_sharks,
-         int fish_sense_dist, int shark_sense_dist, int shark_kill_radius,
-         int fish_max_speed, int shark_max_speed, bool wall>
+        int fish_sense_dist, int shark_sense_dist, int shark_kill_radius,
+        int fish_max_speed, int shark_max_speed, bool wall, int fish_dim_ellipse_x, int fish_dim_ellipse_y>
 class Scene {
 private:
-    using Fish_t = Fish<fish_sense_dist, fish_max_speed, wall>;
-    using Shark_t = Shark<shark_sense_dist, shark_max_speed, shark_kill_radius, fish_sense_dist, fish_max_speed, wall>;
+    using Fish_t = Fish<fish_sense_dist, fish_max_speed, wall, fish_dim_ellipse_x, fish_dim_ellipse_y>;
+    using Shark_t = Shark<shark_sense_dist, shark_max_speed, shark_kill_radius, fish_sense_dist, fish_max_speed, wall, fish_dim_ellipse_x, fish_dim_ellipse_y>;
 
     vector<Fish_t> swarm;
     vector<Shark_t> sharks;
@@ -413,14 +468,16 @@ public:
         if (debug) {
             // complete json object
             log = {
-                {"scene",
-                    {
-                        {"width", width},
-                        {"height", height}
-                    }
-                },
-                {"stepsTotal", num_steps},
-                {"steps", steps_j}
+                    {"scene",
+                                   {
+                                           {"width", width},
+                                           {"height", height}
+                                   }
+                    },
+                    {"stepsTotal", num_steps},
+                    {"fish_dim_x", fish_dim_ellipse_x},
+                    {"fish_dim_y", fish_dim_ellipse_y},
+                    {"steps", steps_j}
             };
 
             // save log to json file -- must not forget to delete previous content
@@ -444,7 +501,7 @@ public:
                     {"x", (int)f.pos[0]},
                     {"y", (int)f.pos[1]},
                     {"dir", direction_radians},
-                    {"alive", f.alive}
+                    {"alive", f.alive},
             };
             swarm_j.emplace_back(fish_j);
         }
@@ -477,6 +534,10 @@ int main(int argc, char** argv) {
     // as constants at the beginning
     parse_arguments(argc, argv);
 
+    // check if fish sense dist is bigger than dimensions of the fish (represented as ellipse)
+    assert(max(FISH_DIM_ELLIPSE_X, FISH_DIM_ELLIPSE_Y) < FISH_SENSE_DIST &&
+        "fish sense dist must be bigger than dimensions of the fish (represented as ellipse)");
+
     // if help was printed, end program
     if (help)
         return 0;
@@ -493,9 +554,9 @@ int main(int argc, char** argv) {
     std::clock_t start = std::clock();
 
     // setup Scene
-    Scene scene = Scene<WIDTH, HEIGHT, NUM_STEPS, NUM_FISH, NUM_SHARKS, 
-                        FISH_SENSE_DIST, SHARK_SENSE_DIST, SHARK_KILL_RADIUS,
-                        FISH_MAX_SPEED, SHARK_MAX_SPEED, WALL>();
+    Scene scene = Scene<WIDTH, HEIGHT, NUM_STEPS, NUM_FISH, NUM_SHARKS,
+            FISH_SENSE_DIST, SHARK_SENSE_DIST, SHARK_KILL_RADIUS,
+            FISH_MAX_SPEED, SHARK_MAX_SPEED, WALL, FISH_DIM_ELLIPSE_X, FISH_DIM_ELLIPSE_Y>();
 
     // simulation
     scene.simulate(output_filepath);
