@@ -9,6 +9,7 @@
 #include "glm/glm/glm.hpp"
 #include "glm/glm/gtx/norm.hpp"
 #include <boost/program_options.hpp>
+#include <unordered_set>
 
 
 using namespace std;
@@ -149,6 +150,27 @@ float ellipsesOverlapDistance(glm::vec2 center1, glm::vec2 direction1, float wid
     float overlapDistance = glm::dot(sumRadii, centerVector) - distance;
 
     return overlapDistance;
+}
+
+class Food {
+public:
+    glm::vec2 pos;
+    int id;
+    bool eaten=false;
+
+    Food(int id) {
+        this->id = id;
+        this->pos = getRandomPlace<WIDTH, HEIGHT>();
+    }
+
+    // TODO? Do we want moving food??
+
+    friend bool operator< (const Food &left, const Food &right);
+};
+
+bool operator< (const Food &left, const Food &right)
+{
+    return left.id < right.id;
 }
 
 template<int fish_sense_dist, int fish_max_speed, bool wall, int fish_dim_ellipse_x, int fish_dim_ellipse_y>
@@ -362,6 +384,7 @@ private:
 
     vector<Fish_t> swarm;
     vector<Shark_t> sharks;
+    set<Food> food;
 
 public:
     Scene() {
@@ -373,6 +396,10 @@ public:
         // generate sharks
         for (int i = 0; i < num_sharks; i++)
             sharks.emplace_back(Shark_t(i));
+
+        // generate food
+        for (int i = 0; i < 50; i++) // todo redo it to variable parameter
+            food.insert(Food(i));
     }
 
     // get neighbors for prey fish up to certain distance
@@ -492,6 +519,7 @@ public:
         nlohmann::json j;
 
         // create json object to each fish
+        int deadFish = 0;
         vector<nlohmann::json> swarm_j;
         for (auto & f: this->swarm) {
             nlohmann::json fish_j;
@@ -504,6 +532,9 @@ public:
                     {"alive", f.alive},
             };
             swarm_j.emplace_back(fish_j);
+            
+            if (!f.alive)
+                deadFish ++;
         }
 
         // create json object to each shark
@@ -520,10 +551,26 @@ public:
             sharks_j.emplace_back(shark_j);
         }
 
+        // create json object for food
+        vector<nlohmann::json> food_j;
+        for (auto &f: this->food) {
+            nlohmann::json f_j;
+//            float direction_radians = atan2(s.dir[0], s.dir[1]);
+            f_j = {
+                    {"id", f.id},
+                    {"x", f.pos[0]},
+                    {"y", f.pos[1]},
+//                    {"dir", direction_radians},
+            };
+            food_j.emplace_back(f_j);
+        }
+
         // add each attribute to the JSON object
         j = {
                 {"sharks", sharks_j},
-                {"swarm", swarm_j}
+                {"swarm", swarm_j},
+                {"food", food_j},
+                {"deadFish", deadFish},
         };
 
         return j;
@@ -536,7 +583,7 @@ int main(int argc, char** argv) {
 
     // check if fish sense dist is bigger than dimensions of the fish (represented as ellipse)
     assert(max(FISH_DIM_ELLIPSE_X, FISH_DIM_ELLIPSE_Y) < FISH_SENSE_DIST &&
-        "fish sense dist must be bigger than dimensions of the fish (represented as ellipse)");
+           "fish sense dist must be bigger than dimensions of the fish (represented as ellipse)");
 
     // if help was printed, end program
     if (help)
