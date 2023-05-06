@@ -1,12 +1,16 @@
 
 let logger = {
     step: 0,
-    stepsTotal: 2000 // save steps num to be able to freeze the last step
+
+    // next two values are placeholders, values are set in setup() function
+    stepsTotal: 1000, // save steps num to be able to freeze the last step
+    currentFrameRate: 30
 }
 let frameRateButton1, frameRateButton2;
 let initFrameRate = 30;
 let output;
 let stepCounter;
+
 fetch('output.json')
     .then(response => response.json())
     .then(data => {
@@ -30,7 +34,9 @@ function setup() {
             // save max num of steps
             logger.stepsTotal = output.stepsTotal;
 
-            frameRate(initFrameRate);
+            // save frame rate
+            logger.frameRate = initFrameRate
+            frameRate(logger.frameRate);
             
             // Create the "Increase Frame Rate" button
             frameRateButton1 = createButton("Increase Frame Rate");
@@ -43,22 +49,22 @@ function setup() {
             frameRateButton2.mouseClicked(decreaseFrameRate);
 
             // create new HTML paragraph element to display dead fish counter
-            frameRateButton = createP("Frame Rate: " + initFrameRate);
+            frameRateButton = createP("Frame Rate: " + logger.frameRate);
 
         })
         .catch(error => console.error(error));
 }
 
 function increaseFrameRate() {
-    let newFrameRate = frameRate() + 5;
-    frameRateButton.html("Frame Rate: " + newFrameRate)
-    frameRate(newFrameRate); // Increase the frame rate by 5 frames per second
+    logger.frameRate += 5;
+    frameRateButton.html("Frame Rate: " + logger.frameRate)
+    frameRate(logger.frameRate); // Increase the frame rate by 5 frames per second
 }
 
 function decreaseFrameRate() {
-    let newFrameRate = frameRate() - 5;
-    frameRateButton.html("Frame Rate: " + newFrameRate)
-    frameRate(newFrameRate); // Decrease the frame rate by 5 frames per second
+    logger.frameRate -= 5;
+    frameRateButton.html("Frame Rate: " + logger.frameRate)
+    frameRate(logger.frameRate); // Decrease the frame rate by 5 frames per second
 }
 
 function render_step(output) {
