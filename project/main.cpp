@@ -28,24 +28,34 @@ float SHARK_REPULSION_CONSTANT = 10.;
 // mostly shark parameters, or scene params
 constexpr int WIDTH = 400;                      // scene width
 constexpr int HEIGHT = 400;                     // scene height
+
 constexpr int NUM_STEPS = 1000;                 // number of steps to simulate
 constexpr int NUM_FISH = 400;                   // total number of fish
 constexpr int NUM_SHARKS = 1;                   // number of sharks
 constexpr int NUM_FOOD = 50;                    // number of food in simulation
+
 constexpr int FISH_SENSE_DIST = 25;             // distance for fish to sense neighbors
 constexpr int SHARK_SENSE_DIST = 100;           // distance for shark to sense neighbors
+
 constexpr int FISH_MAX_SPEED = 5;               // maximal speed of fish
 constexpr int SHARK_MAX_SPEED = 7;              // maximal speed of sharks
+
 constexpr int SHARK_KILL_RADIUS = 10;           // distance for which shark can kill
-constexpr float SHARK_MOMENTUM_CONSTANT = 1.;   //
+constexpr float SHARK_MOMENTUM_CONSTANT = 1.;   // constant which manages how much of previous shark direction is preserved
 constexpr float SHARK_SEARCH_CONSTANT = 2.;     // constant which manages behaviour of shark when no fish is around in his SENSE_DIST
-constexpr float HUNT_CONSTANT = 40.;            //
-constexpr bool WALL = false;                    // if true, applies the walls around the canvas, else applies scene warping
+constexpr float HUNT_CONSTANT = 40.;            // constant which manages behaviour of shark when there are fish around in his SENSE_DIST
+
 constexpr int FISH_DIM_ELLIPSE_X = 5;           // size of a fish (defined by ellipse) in x-axis
 constexpr int FISH_DIM_ELLIPSE_Y = 9;           // size of a fish (defined by ellipse) in y-axis
-constexpr int SHARK_BLIND_ANGLE_BACK = 40;      // the angle (in degrees) of a shark that he cannot see. Middle of the blind spot angle is right behind the shark
-constexpr int SHARK_DIM_ELLIPSE_X = 30;
-constexpr int SHARK_DIM_ELLIPSE_Y = 50;
+constexpr int FISH_LARGER_DIM = (FISH_DIM_ELLIPSE_X > FISH_DIM_ELLIPSE_Y) ? FISH_DIM_ELLIPSE_X : FISH_DIM_ELLIPSE_Y;
+
+constexpr int SHARK_DIM_ELLIPSE_X = 30;         // size of the shark (defined by ellipse) in x-axis
+constexpr int SHARK_DIM_ELLIPSE_Y = 50;         // size of the shark (defined by ellipse) in y-axis
+constexpr int SHARK_LARGER_DIM = (SHARK_DIM_ELLIPSE_X > SHARK_DIM_ELLIPSE_Y) ? SHARK_DIM_ELLIPSE_X : SHARK_DIM_ELLIPSE_Y;
+
+constexpr int SHARK_BLIND_ANGLE_DEG = 40;      // the angle (in degrees) of a shark that he cannot see. Middle of the blind spot angle is right behind the shark
+
+constexpr bool WALL = false;                    // if true, applies the walls around the canvas, else applies scene warping
 
 // also help/debug parameters to enable help/debug messages or logs
 bool debug = true; // this enables printing + logging to json
@@ -116,8 +126,8 @@ bool isFishOutOfBorders(glm::vec2 fishPosition) {
     return (fishPosition.x < 0 || fishPosition.x > canvasWidth || fishPosition.y < 0 || fishPosition.y > canvasHeight);
 }
 
-// TODO add possible template
-float ellipsesOverlapDistance(glm::vec2 center1, glm::vec2 direction1, float width1, float height1, glm::vec2 center2, glm::vec2 direction2, float width2, float height2) {
+template<int width1, int height1, int width2, int height2>
+float ellipsesOverlapDistance(glm::vec2 center1, glm::vec2 direction1, glm::vec2 center2, glm::vec2 direction2) {
     // Normalize the direction vectors
     glm::vec2 normDirection1 = glm::normalize(direction1);
     glm::vec2 normDirection2 = glm::normalize(direction2);
@@ -171,7 +181,7 @@ public:
         this->pos = getRandomPlace<WIDTH, HEIGHT>();
     }
 
-    // TODO? Do we want moving food??
+    // TODO: Do we want moving food?
 
     friend bool operator< (const Food &left, const Food &right);
 };
@@ -291,17 +301,21 @@ public:
         }
 
         // check if fish dimensions does not overlap with other fish
+        // however, only count this if there is a chance of overlap at all 
         for (auto &n: neighbours){
-            float ovrlpDistance = ellipsesOverlapDistance(
-                    this->pos, this->dir,(float) fish_dim_ellipse_x, (float) fish_dim_ellipse_y,
-                    n.pos, n.dir, (float) fish_dim_ellipse_x, (float) fish_dim_ellipse_y);
+            // check if there is even a chance for overlap (in radius of larger fish dimension, with some margin)
+            if (glm::length(this->pos - n.pos) > FISH_LARGER_DIM + 5) {
+                continue;
+            }
+            float ovrlpDistance = ellipsesOverlapDistance<fish_dim_ellipse_x, fish_dim_ellipse_y, fish_dim_ellipse_x, fish_dim_ellipse_y>(
+                    this->pos, this->dir, n.pos, n.dir);
             if (ovrlpDistance > 0) {
-                // move direction
-                this->dir *= -0.5; // FIXME?
+                // change the direction
+                this->dir *= -0.25; // TODO: FIXME?
             }
         }
 
-        // TODO adjust the change of direction possible and its momentum (magnitude) - scale direction while turning - if significant turn, there is decrease of momentum
+        // TODO: adjust the change of direction possible and its momentum (magnitude) - scale direction while turning - if significant turn, there is decrease of momentum
 
 
         // update fish position
@@ -386,9 +400,10 @@ public:
 };
 
 
-template<int width, int height, int num_steps, int num_fish, int num_sharks,
+template<int width, int height, int num_steps, int num_fish, int num_sharks, int num_food,
         int fish_sense_dist, int shark_sense_dist, int shark_kill_radius,
-        int fish_max_speed, int shark_max_speed, bool wall, int fish_dim_ellipse_x, int fish_dim_ellipse_y, int num_food>
+        int fish_max_speed, int shark_max_speed, int fish_dim_ellipse_x, int fish_dim_ellipse_y, 
+        int shark_blind_angle_deg, bool wall>
 class Scene {
 private:
     using Fish_t = Fish<fish_sense_dist, fish_max_speed, wall, fish_dim_ellipse_x, fish_dim_ellipse_y>;
@@ -427,7 +442,7 @@ public:
         return neighbours;
     }
 
-    bool isInBlindSpot(glm::vec2 fishPos, glm::vec2 sharkPos, glm::vec2 sharkDir, float blindSpotAngleDeg) {
+    bool isInBlindSpot(glm::vec2 fishPos, glm::vec2 sharkPos, glm::vec2 sharkDir) {
         // Calculate the vector from the shark to the fish
         glm::vec2 sharkToFish = fishPos - sharkPos;
 
@@ -435,7 +450,7 @@ public:
         float angle = glm::angle(sharkDir, sharkToFish);
         
         // Convert the blind spot angle from degrees to radians
-        float blindSpotAngleRad = glm::radians(blindSpotAngleDeg);
+        float blindSpotAngleRad = glm::radians((float)shark_blind_angle_deg);
 
         // If the angle is greater than or equal to the blind spot angle, the fish is in the blind spot
         return angle >= glm::pi<float>() - blindSpotAngleRad / 2;
@@ -448,7 +463,7 @@ public:
         for (const auto& f: swarm){
             if (f.alive &&
                 glm::distance(s.pos, f.pos)<= (float)shark_sense_dist &&
-                !isInBlindSpot(f.pos, s.pos, s.dir , SHARK_BLIND_ANGLE_BACK)) {
+                !isInBlindSpot(f.pos, s.pos, s.dir)) {
                     neighbours.push_back(f);
             }
         }
@@ -540,7 +555,7 @@ public:
                     {"shark_dim_y", SHARK_DIM_ELLIPSE_Y},
                     {"shark_kill_radius", SHARK_KILL_RADIUS},
                     {"shark_sense_dist", SHARK_SENSE_DIST},
-                    {"shark_blind_angle_back", SHARK_BLIND_ANGLE_BACK},
+                    {"shark_blind_angle_back", SHARK_BLIND_ANGLE_DEG},
                     {"steps", steps_j},
             };
 
@@ -638,9 +653,10 @@ int main(int argc, char** argv) {
     std::clock_t start = std::clock();
 
     // setup Scene
-    Scene scene = Scene<WIDTH, HEIGHT, NUM_STEPS, NUM_FISH, NUM_SHARKS,
+    Scene scene = Scene<WIDTH, HEIGHT, NUM_STEPS, NUM_FISH, NUM_SHARKS, NUM_FOOD,
             FISH_SENSE_DIST, SHARK_SENSE_DIST, SHARK_KILL_RADIUS,
-            FISH_MAX_SPEED, SHARK_MAX_SPEED, WALL, FISH_DIM_ELLIPSE_X, FISH_DIM_ELLIPSE_Y, NUM_FOOD>();
+            FISH_MAX_SPEED, SHARK_MAX_SPEED, FISH_DIM_ELLIPSE_X, FISH_DIM_ELLIPSE_Y, 
+            SHARK_BLIND_ANGLE_DEG, WALL>();
 
     // simulation
     scene.simulate(output_filepath);
