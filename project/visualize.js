@@ -169,7 +169,7 @@ function draw() {
             })
             .catch(error => console.error(error));
     }
-    else if (logger.step < logger.stepsTotal) {
+    else if (logger.step < logger.stepsTotal - 1) {
         render_step(output);
     }
 }
