@@ -13,8 +13,14 @@ Individual: TypeAlias = list[float]
 
 
 def generate_individual(individual_len: int) -> Individual:  
-    """Randomly generate an individual of size `chromosome_len`."""
-    return [random.uniform(0, 20) for _ in range(individual_len)]
+    """
+    Randomly generate an individual of size `chromosome_len`.
+    Sample from from 2 different distributions - [0,1] and [0,20] - to achieve diverse (both small & larger) values.
+    """
+    # select which distribution (low or high) will be used to get value for each parameter
+    distrib_choices = [random.random() > 0.5 for _ in range(individual_len)]
+    # randomly sample from low or high distributions
+    return [random.uniform(0, 10) if choice else random.random() for choice in distrib_choices]
 
 
 def generate_population(
@@ -165,11 +171,39 @@ def reproduction_step(
         if random.random() < crossover_prob:
             offspring_population.extend(crossover(selected_parents[i - 1], selected_parents[i]))
 
-    # apply mutations to all offsprings
+    # apply mutations to all individuals, generate 2 mutated copies of each offspring
+    offspring_population.extend(offspring_population)
     offspring_population = map(lambda x: mutate(x, mutation_prob), offspring_population)
+
+    # TODO: filter the duplicate copies at this point, instead of doing it later after running simulations
 
     return list(offspring_population)
 
+
+def are_too_similar(indiv1: Individual, indiv2: Individual)-> bool:
+    """Check if two individuals are so similar that they can be considered redundant."""
+    for i in range(len(indiv1)):
+        if indiv1[i] - indiv2[i] > 1e-4:
+            return False
+    return True
+
+
+def remove_duplicates(
+        combined_population: list[tuple[Individual, float]]
+        )-> list[tuple[Individual, float]]:
+    """Remove redundant copies of the same individuals to not lose diversity."""
+    unique_population = []
+
+    for (indiv, score1) in combined_population:
+        skip_indiv = False
+        for (unique_indiv, score2) in unique_population:
+            if are_too_similar(indiv, unique_indiv):
+                skip_indiv = True
+                break
+        if not skip_indiv:
+            unique_population.append((indiv, score1))
+    return unique_population
+            
 
 def elitist_replacement(
         population_with_fitness: list[tuple[Individual, float]], 
@@ -180,8 +214,11 @@ def elitist_replacement(
 
     combined_population = population_with_fitness.copy()
     combined_population.extend(offsprings_with_fitness)
+    # sort the population based on fitness
     combined_population.sort(key=lambda x: x[1])
-    return combined_population[:population_size]
+    # Remove redundant copies of the same individuals to not lose diversity
+    combined_population = remove_duplicates(combined_population)
+    return combined_population[:population_size]    
 
 
 def replacement_step(
@@ -196,6 +233,18 @@ def replacement_step(
     return elitist_replacement(population_with_fitness, offsprings_with_fitness)
 
 
+def print_generation_info(
+        generation: int,
+        run_time: float, 
+        population_with_fitness: list[tuple[Individual, float]]
+        ):
+    print(f"GEN {generation}, TIME {run_time:.2f}, PARAMS: [ ", end="")
+    fittest_indiv, score = get_fittest_individual(population_with_fitness)
+    for param in fittest_indiv:
+        print(f"{param:.5f}", end=", ")
+    print(f"], SCORE: {score:.2f}")
+
+
 def evolution(
     mutation_prob: float,
     crossover_prob: float,
@@ -208,13 +257,13 @@ def evolution(
     debug: bool = False,
 ) ->  list[tuple[Individual, float]]:
     """Run the whole evolution process."""
-    TOURNAMENT_K = 5 # for now, we'll use tournament selection, will change
+    TOURNAMENT_K = 6 # for now, we'll use tournament selection, this will change
 
     # generate the population and evaluate it
     population = generate_population(population_size, len_individual)
     population_with_fitness = eval_population(population, simulations_per_indiv)
     # get the best individual of the new population and log it
-    print(f"GEN 0, TIME {time.time() - start_time},", get_fittest_individual(population_with_fitness), flush=True)
+    print_generation_info(0, time.time() - start_time, population_with_fitness)
 
     iteration = 0
     while iteration < generations_max:
@@ -229,11 +278,16 @@ def evolution(
         # evaluate fitness of the offspring population
         offsprings_with_fitness = eval_population(generated_offsprings, simulations_per_indiv)
 
+        for i in sorted(population_with_fitness, key=lambda x: x[1]):
+            print("p", i)
+        for i in sorted(offsprings_with_fitness, key=lambda x: x[1]):
+            print("o", i)
+
         # create new population using the old and new populations
         population_with_fitness = replacement_step(population_with_fitness, offsprings_with_fitness)
  
         # get the best individual of the new population and log it
-        print(f"GEN {iteration}, TIME {time.time() - start_time},", get_fittest_individual(population_with_fitness), flush=True)
+        print_generation_info(iteration, time.time() - start_time, population_with_fitness)
 
     # return the fittest individual
     return get_n_fittest_individuals(population_with_fitness, n_best_to_return)
@@ -287,11 +341,11 @@ if __name__ == "__main__":
     )
 
     # algorithm parameters (all tunable, but with default values)
-    parser.add_argument('-m', '--mutation_prob', default=0.2)
-    parser.add_argument('-c', '--crossover_prob', default=0.2)
-    parser.add_argument('-p', '--population_size', default=10) # ideally use 100+
-    parser.add_argument('-g', '--generations_max', default=20) # ideally use 200+
-    parser.add_argument('-s', '--simulations_per_indiv', default=8) # ideally use 8-16, depend on cores
+    parser.add_argument('-m', '--mutation_prob', default=0.25)
+    parser.add_argument('-c', '--crossover_prob', default=0.4)
+    parser.add_argument('-p', '--population_size', default=15) # ideally use 50-100?
+    parser.add_argument('-g', '--generations_max', default=20) # ideally use 50-100?
+    parser.add_argument('-s', '--simulations_per_indiv', default=8) # ideally use 8 or 16, depends on cores in cpu
     parser.add_argument('-l', '--len_individual', default=5)
     parser.add_argument('-r', '--random_seed', default=True)
     parser.add_argument('-n', '--n_best_to_return', default=10)
