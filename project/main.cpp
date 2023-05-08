@@ -19,7 +19,7 @@ using namespace std;
 // their values can be given via CLI arguments
 // basically factors to multiply various forces of FISH
 float FISH_MOMENTUM_CONSTANT = 0.75;
-float ALIGNMENT_CONSTANT = 0.2;
+float ALIGNMENT_CONSTANT = 0.25;
 float COHESION_CONSTANT = 0.05;
 float SEPARATION_CONSTANT = 20.;
 float SHARK_REPULSION_CONSTANT = 10.;
@@ -32,7 +32,7 @@ constexpr int HEIGHT = 400;                     // scene height
 constexpr int NUM_STEPS = 1000;                 // number of steps to simulate
 constexpr int NUM_FISH = 400;                   // total number of fish
 constexpr int NUM_SHARKS = 1;                   // number of sharks
-constexpr int NUM_FOOD = 50;                    // number of food in simulation
+constexpr int NUM_FOOD = 200;                    // number of food in simulation
 
 constexpr int FISH_SENSE_DIST = 25;             // distance for fish to sense neighbors
 constexpr int SHARK_SENSE_DIST = 100;           // distance for shark to sense neighbors
@@ -170,23 +170,58 @@ glm::vec2 getMouthFromCenter (glm::vec2 pos, glm::vec2 dir) {
     return pos + (((float)SHARK_DIM_ELLIPSE_Y/2) / glm::length(dir)) * dir;
 }
 
+
+// just some forward definitions due to templates
+template<bool wall, int fish_sense_dist>
+class Food;
+
+// note that this "T" is unrelated to the T of MyClass !
+template<bool wall, int fish_sense_dist>
+bool operator< (const Food<wall, fish_sense_dist> &left, const Food<wall, fish_sense_dist> &right);
+
+
+// TODO: we now use cheating (mutable attributes) because set<Food> requires Food to be constant...
+template<bool wall, int fish_sense_dist>
 class Food {
 public:
-    glm::vec2 pos;
+    using Food_t = Food<wall, fish_sense_dist>;
+
     int id;
-    bool eaten=false;
+    mutable glm::vec2 pos;
+    mutable glm::vec2 dir;
+    mutable bool eaten=false;
 
     Food(int id) {
         this->id = id;
         this->pos = getRandomPlace<WIDTH, HEIGHT>();
     }
 
-    // TODO: Do we want moving food?
+    friend bool operator< <>(const Food_t &left, const Food_t &right);
 
-    friend bool operator< (const Food &left, const Food &right);
+    // TODO: How do we want the food to flow? - for now, just randomly drifts a bit
+    void step() const {
+        this->dir += getRandomDirection();
+        this->dir = glm::normalize(this->dir); // always normalize for small update
+
+        // wall repulsion, if it is enabled (food should not move too close to the wall)
+        if (wall) {
+            glm::vec2 nearest_wall = getNearestBorderPoint<WIDTH, HEIGHT>(this->pos);
+            // food must be possible to reach by fish
+            if (glm::distance(nearest_wall, this->pos) <= (float)fish_sense_dist) {
+                glm::vec2 wall_repulsion_vector = this->pos - nearest_wall;
+                wall_repulsion_vector = glm::normalize(wall_repulsion_vector);
+                wall_repulsion_vector *= 2; // make it bit larger to avoid clustering in corners
+                this->dir = wall_repulsion_vector;
+            }
+        }
+
+        this->pos += this->dir;
+    }
 };
 
-bool operator< (const Food &left, const Food &right)
+
+template<bool wall, int fish_sense_dist>
+bool operator< (const Food<wall, fish_sense_dist> &left, const Food<wall, fish_sense_dist> &right)
 {
     return left.id < right.id;
 }
@@ -408,10 +443,11 @@ class Scene {
 private:
     using Fish_t = Fish<fish_sense_dist, fish_max_speed, wall, fish_dim_ellipse_x, fish_dim_ellipse_y>;
     using Shark_t = Shark<shark_sense_dist, shark_max_speed, shark_kill_radius, fish_sense_dist, fish_max_speed, wall, fish_dim_ellipse_x, fish_dim_ellipse_y>;
+    using Food_t = Food<wall, fish_sense_dist>;
 
     vector<Fish_t> swarm;
     vector<Shark_t> sharks;
-    set<Food> food;
+    set<Food_t> food;
 
 public:
     Scene() {
@@ -426,7 +462,7 @@ public:
 
         // generate food
         for (int i = 0; i < num_food; i++) // todo redo it to variable parameter
-            food.insert(Food(i));
+            food.insert(Food_t(i));
     }
 
     // get neighbors for prey fish up to certain distance
@@ -499,6 +535,12 @@ public:
 
         for (int i = 0; i < num_steps; i++){
             if (debug) std::cout << "step #" << i;
+
+            // food drifting
+            for (auto& f: food) {
+                f.step();
+                wrap(f.pos[0], f.pos[1]);
+            }
 
             // move fish
             for (auto& f: swarm) {
