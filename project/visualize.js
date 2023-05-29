@@ -1,10 +1,11 @@
 
 let logger = {
     step: 0,
+    numFoodEaten: 0,
 
     // next two values are placeholders, values are set in setup() function
     stepsTotal: 1000, // save steps num to be able to freeze the last step
-    currentFrameRate: 30
+    currentFrameRate: 30,
 }
 let frameRateButton1, frameRateButton2;
 let initFrameRate = 30;
@@ -30,6 +31,9 @@ function setup() {
 
             // create new HTML paragraph element to display dead fish counter
             deadFishCounter = createP("Dead Fish: " + 0);
+
+            // create new HTML paragraph element to display dead fish counter
+            eatenFoodCounter = createP("Eaten food pieces: " + 0);
 
             // save max num of steps
             logger.stepsTotal = output.stepsTotal;
@@ -158,6 +162,8 @@ function render_step(output) {
 
     stepCounter.html("Step: " + i);
     deadFishCounter.html("Dead Fish: " + output.steps[i].deadFish)
+    logger.numFoodEaten += output.steps[i].eatenFood;
+    eatenFoodCounter.html("Eaten food pieces: " + logger.numFoodEaten)
 }
 
 function draw() {

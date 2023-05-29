@@ -15,12 +15,12 @@ Individual: TypeAlias = list[float]
 def generate_individual(individual_len: int) -> Individual:  
     """
     Randomly generate an individual of size `chromosome_len`.
-    Sample from from 2 different distributions - [0,1] and [0,20] - to achieve diverse (both small & larger) values.
+    Sample from from 2 different distributions - [0,1] and [1,10] - to achieve diverse (both small & larger) values.
     """
     # select which distribution (low or high) will be used to get value for each parameter
     distrib_choices = [random.random() > 0.5 for _ in range(individual_len)]
     # randomly sample from low or high distributions
-    return [random.uniform(0, 10) if choice else random.random() for choice in distrib_choices]
+    return [random.uniform(1, 10) if choice else random.random() for choice in distrib_choices]
 
 
 def generate_population(
@@ -45,8 +45,8 @@ def get_simulation_result(individual: Individual) -> int:
         ], stdout=subprocess.PIPE)
     output = output.stdout.decode("utf-8").strip()
 
-    # output is in form "TOTAL FISH EATEN: N" - return the number
-    return int(output.split()[-1])
+    # output is in form "TOTAL FISH EATEN: N\nTOTAL FOOD EATEN: N" - return the number
+    return int(output.split('\n')[0].split()[-1])
 
 
 def eval_individual(
@@ -291,7 +291,6 @@ def evolution(
 
     # return the fittest individual
     return get_n_fittest_individuals(population_with_fitness, n_best_to_return)
-
 
 
 def main(

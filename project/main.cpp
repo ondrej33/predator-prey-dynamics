@@ -22,7 +22,8 @@ float FISH_MOMENTUM_CONSTANT = 0.75;
 float ALIGNMENT_CONSTANT = 0.25;
 float COHESION_CONSTANT = 0.05;
 float SEPARATION_CONSTANT = 20.;
-float SHARK_REPULSION_CONSTANT = 10.;
+float SHARK_REPULSION_CONSTANT = 8.;
+float FOOD_ATTRACTION_CONSTANT = 0.25;
 
 // 2) FIXED MODEL PARAMETERS - similar, but not to be optimized via evolution
 // mostly shark parameters, or scene params
@@ -32,9 +33,9 @@ constexpr int HEIGHT = 400;                     // scene height
 constexpr int NUM_STEPS = 1000;                 // number of steps to simulate
 constexpr int NUM_FISH = 400;                   // total number of fish
 constexpr int NUM_SHARKS = 1;                   // number of sharks
-constexpr int NUM_FOOD = 200;                    // number of food in simulation
+constexpr int NUM_FOOD = 100;                   // number of food in simulation
 
-constexpr int FISH_SENSE_DIST = 25;             // distance for fish to sense neighbors
+constexpr int FISH_SENSE_DIST = 25;             // distance for fish to sense neighbors or food
 constexpr int SHARK_SENSE_DIST = 100;           // distance for shark to sense neighbors
 
 constexpr int FISH_MAX_SPEED = 5;               // maximal speed of fish
@@ -71,7 +72,8 @@ void parse_arguments(int argc, char** argv) {
             ("alignment", boost::program_options::value<float>(&ALIGNMENT_CONSTANT), "Alignment constant")
             ("cohesion", boost::program_options::value<float>(&COHESION_CONSTANT), "Cohesion constant")
             ("separation", boost::program_options::value<float>(&SEPARATION_CONSTANT), "Separation constant")
-            ("shark-repulsion", boost::program_options::value<float>(&SHARK_REPULSION_CONSTANT), "Shark repulsion constant");
+            ("shark-repulsion", boost::program_options::value<float>(&SHARK_REPULSION_CONSTANT), "Shark repulsion constant")
+            ("food", boost::program_options::value<float>(&FOOD_ATTRACTION_CONSTANT), "Fish food attraction constant");
 
     // Parse the command line arguments
     boost::program_options::variables_map vm;
@@ -200,8 +202,12 @@ public:
 
     // TODO: How do we want the food to flow? - for now, just randomly drifts a bit
     void step() const {
+        // when it is dead, do nothing
+        if (eaten)
+            return;
+
         this->dir += getRandomDirection();
-        this->dir = glm::normalize(this->dir); // always normalize for small update
+        this->dir = glm::normalize(this->dir); // always normalize to only get a small update
 
         // wall repulsion, if it is enabled (food should not move too close to the wall)
         if (wall) {
@@ -229,6 +235,8 @@ bool operator< (const Food<wall, fish_sense_dist> &left, const Food<wall, fish_s
 template<int fish_sense_dist, int fish_max_speed, bool wall, int fish_dim_ellipse_x, int fish_dim_ellipse_y>
 class Fish {
 public:
+    using Food_t = Food<wall, fish_sense_dist>;
+
     // first Width, then Height
     glm::vec2 pos;
     glm::vec2 dir;
@@ -241,7 +249,12 @@ public:
         this->dir = getRandomDirection();
     }
 
-    void step(vector<Fish> & neighbours, const vector<glm::vec2>& sharks_pos, const vector<glm::vec2>& sharks_direction) {
+    void step(
+        vector<Fish> & neighbours, 
+        vector<Food_t> & close_food,
+        const vector<glm::vec2>& sharks_pos, 
+        const vector<glm::vec2>& sharks_direction
+    ) {
         // when it is dead, do nothing
         if (!alive)
             return;
@@ -297,6 +310,23 @@ public:
         glm::vec2 separation_vec = avg_d;
         separation_vec *= SEPARATION_CONSTANT;
         this->dir += separation_vec;
+
+        // TODO: food attraction force
+        // for now - go to closest food if there is some close by
+        glm::vec2 closest_food_pos(0);
+        float closest_food_dist = fish_sense_dist;
+        for (auto f : close_food) {
+            if (glm::distance(this->pos, f.pos) <= closest_food_dist) {
+                closest_food_pos = f.pos;
+                closest_food_dist = glm::distance(this->pos, f.pos);
+            }        
+        }
+        if (closest_food_dist < fish_sense_dist) { // only use food attraction if some food close by was found
+            glm::vec2 food_attraction_vec = closest_food_pos - this->pos;
+            food_attraction_vec /= glm::length(food_attraction_vec); // divide by magnitude
+            food_attraction_vec *= FOOD_ATTRACTION_CONSTANT;
+            this->dir += food_attraction_vec;
+        }
 
         // repulse force from each shark
         int i = 0;
@@ -447,7 +477,8 @@ private:
 
     vector<Fish_t> swarm;
     vector<Shark_t> sharks;
-    set<Food_t> food;
+    set<Food_t> food_set;
+    int next_food_index; // when inserting new food, use this free (not used) index
 
 public:
     Scene() {
@@ -457,12 +488,15 @@ public:
         }
 
         // generate sharks
-        for (int i = 0; i < num_sharks; i++)
+        for (int i = 0; i < num_sharks; i++) {
             sharks.emplace_back(Shark_t(i));
+        }
 
         // generate food
-        for (int i = 0; i < num_food; i++) // todo redo it to variable parameter
-            food.insert(Food_t(i));
+        for (int i = 0; i < num_food; i++) {
+            food_set.insert(Food_t(i));
+        }
+        next_food_index = num_food;
     }
 
     // get neighbors for prey fish up to certain distance
@@ -476,6 +510,19 @@ public:
         }
 
         return neighbours;
+    }
+
+    // get food for prey fish which is up to certain distance
+    vector<Food_t> getNeighbouringFood(Fish_t fish) {
+        vector<Food_t> food_close_by;
+
+        for (auto f: food_set){
+            if (!f.eaten && glm::distance(fish.pos, f.pos)<= (float)fish_sense_dist) {
+                food_close_by.push_back(f);
+            }
+        }
+
+        return food_close_by;
     }
 
     bool isInBlindSpot(glm::vec2 fishPos, glm::vec2 sharkPos, glm::vec2 sharkDir) {
@@ -519,6 +566,18 @@ public:
         return eatenFish;
     }
 
+    // mark eaten food pieces and return them
+    vector<Food_t> getEatenFood(const Fish_t& fish) {
+        vector<Food_t> eatenFood;
+        for (auto& f: food_set) {
+            if (!f.eaten && glm::distance(fish.pos, f.pos) <= (float)fish_dim_ellipse_x) {
+                f.eaten = true;
+                eatenFood.push_back(f);
+            }
+        }
+        return eatenFood;
+    }
+
     // Function to wrap outer boundaries of the canvas using "cyclic" boundaries
     // gets a point, returns either same point, or point on opposite side if it "crosses" boundary
     void wrap(float& x, float& y) {
@@ -532,19 +591,22 @@ public:
         nlohmann::json log;
         vector<nlohmann::json> steps_j;
         size_t fish_eaten_total = 0;
+        size_t food_eaten_total = 0;
 
         for (int i = 0; i < num_steps; i++){
             if (debug) std::cout << "step #" << i;
 
             // food drifting
-            for (auto& f: food) {
+            for (auto& f: food_set) {
                 f.step();
                 wrap(f.pos[0], f.pos[1]);
             }
 
             // move fish
+            size_t eaten_food_counter = 0;
             for (auto& f: swarm) {
                 vector<Fish_t> neighbours = getFishNeighbours(f);
+                vector<Food_t> food_close_by = getNeighbouringFood(f);
                 vector<glm::vec2> sharks_position;
                 std::transform(sharks.begin(), sharks.end(), std::back_inserter(sharks_position), [](const Shark_t s){
                     return s.pos;
@@ -553,8 +615,17 @@ public:
                 std::transform(sharks.begin(), sharks.end(), std::back_inserter(sharks_direction), [](const Shark_t s){
                     return s.dir;
                 });
-                f.step(neighbours, sharks_position, sharks_direction);
+                f.step(neighbours, food_close_by, sharks_position, sharks_direction);
                 wrap(f.pos[0], f.pos[1]);
+
+                // remove and count eaten food, add new food
+                vector<Food_t> eaten_food = getEatenFood(f);
+                eaten_food_counter += eaten_food.size();
+                for (auto& f: eaten_food) {
+                    food_set.erase(f);
+                    food_set.insert(Food_t(next_food_index));
+                    next_food_index++;
+                }
             }
 
             // handle sharks
@@ -570,25 +641,35 @@ public:
                 eaten_fish_counter += eaten_fish.size();
             }
             if (eaten_fish_counter > 0) {
-                if (debug) std::cout << " [" << eaten_fish_counter << " fish eaten]" << endl;
+                if (debug) std::cout << " [" << eaten_fish_counter << " fish eaten]";
+                if (eaten_food_counter > 0) {
+                    if (debug) std::cout << " [" << eaten_food_counter << " food eaten]" << endl;
+                    food_eaten_total += eaten_food_counter;
+                } else {
+                    if (debug) std::cout << endl;
+                }
                 fish_eaten_total += eaten_fish_counter;
+            } else if (eaten_food_counter > 0) {
+                if (debug) std::cout << "               " << " [" << eaten_food_counter << " food eaten]" << endl;
+                food_eaten_total += eaten_food_counter;
             } else {
                 if (debug) std::cout << endl;
             }
-            if (debug) steps_j.push_back(logStepToJson());
+            if (debug) steps_j.push_back(logStepToJson(eaten_food_counter));
         }
 
         // always print this
         std::cout << "TOTAL FISH EATEN: " << fish_eaten_total << endl;
+        std::cout << "TOTAL FOOD EATEN: " << food_eaten_total << endl;
 
         if (debug) {
             // complete json object
             log = {
                     {"scene",
-                                   {
-                                           {"width", width},
-                                           {"height", height}
-                                   }
+                        {
+                            {"width", width},
+                            {"height", height}
+                        }
                     },
                     {"stepsTotal", num_steps},
                     {"fish_dim_x", fish_dim_ellipse_x},
@@ -608,7 +689,7 @@ public:
         }
     }
 
-    nlohmann::json logStepToJson() {
+    nlohmann::json logStepToJson(int eaten_food_counter) {
         // create an empty JSON object
         nlohmann::json j;
 
@@ -647,7 +728,7 @@ public:
 
         // create json object for food
         vector<nlohmann::json> food_j;
-        for (auto &f: this->food) {
+        for (auto &f: this->food_set) {
             nlohmann::json f_j;
 //            float direction_radians = atan2(s.dir[0], s.dir[1]);
             f_j = {
@@ -665,6 +746,7 @@ public:
                 {"swarm", swarm_j},
                 {"food", food_j},
                 {"deadFish", deadFish},
+                {"eatenFood", eaten_food_counter},
         };
 
         return j;
