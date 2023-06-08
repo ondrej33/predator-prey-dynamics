@@ -19,6 +19,7 @@ using namespace std;
 // their values can be given via CLI arguments
 // basically factors to multiply various forces of FISH
 float FISH_MOMENTUM_CONSTANT = 0.75;
+float FISH_FEAR_MOMENTUM_CONSTANT = 0.8;
 float ALIGNMENT_CONSTANT = 0.25;
 float COHESION_CONSTANT = 0.05;
 float SEPARATION_CONSTANT = 20.;
@@ -33,28 +34,29 @@ constexpr int HEIGHT = 400;                     // scene height
 constexpr int NUM_STEPS = 1000;                 // number of steps to simulate
 constexpr int NUM_FISH = 400;                   // total number of fish
 constexpr int NUM_SHARKS = 1;                   // number of sharks
-constexpr int NUM_FOOD = 100;                   // number of food in simulation
+constexpr int NUM_FOOD = 50;                    // number of food in simulation
 
 constexpr int FISH_SENSE_DIST = 25;             // distance for fish to sense neighbors or food
 constexpr int SHARK_SENSE_DIST = 100;           // distance for shark to sense neighbors
 
-constexpr int FISH_MAX_SPEED = 5;               // maximal speed of fish
+constexpr int FISH_MAX_SPEED = 4;               // maximal speed of fish
 constexpr int SHARK_MAX_SPEED = 7;              // maximal speed of sharks
 
 constexpr int SHARK_KILL_RADIUS = 10;           // distance for which shark can kill
 constexpr float SHARK_MOMENTUM_CONSTANT = 1.;   // constant which manages how much of previous shark direction is preserved
 constexpr float SHARK_SEARCH_CONSTANT = 2.;     // constant which manages behaviour of shark when no fish is around in his SENSE_DIST
-constexpr float HUNT_CONSTANT = 40.;            // constant which manages behaviour of shark when there are fish around in his SENSE_DIST
+constexpr float SHARK_HUNT_CONSTANT = 40.;      // constant which manages behaviour of shark when there are fish around in his SENSE_DIST
 
 constexpr int FISH_DIM_ELLIPSE_X = 5;           // size of a fish (defined by ellipse) in x-axis
 constexpr int FISH_DIM_ELLIPSE_Y = 9;           // size of a fish (defined by ellipse) in y-axis
 constexpr int FISH_LARGER_DIM = (FISH_DIM_ELLIPSE_X > FISH_DIM_ELLIPSE_Y) ? FISH_DIM_ELLIPSE_X : FISH_DIM_ELLIPSE_Y;
+constexpr int FISH_FEAR_CONSTANT = 3;           // number of steps when fish continues running from the shark
 
 constexpr int SHARK_DIM_ELLIPSE_X = 30;         // size of the shark (defined by ellipse) in x-axis
 constexpr int SHARK_DIM_ELLIPSE_Y = 50;         // size of the shark (defined by ellipse) in y-axis
 constexpr int SHARK_LARGER_DIM = (SHARK_DIM_ELLIPSE_X > SHARK_DIM_ELLIPSE_Y) ? SHARK_DIM_ELLIPSE_X : SHARK_DIM_ELLIPSE_Y;
 
-constexpr int SHARK_BLIND_ANGLE_DEG = 40;      // the angle (in degrees) of a shark that he cannot see. Middle of the blind spot angle is right behind the shark
+constexpr int SHARK_BLIND_ANGLE_DEG = 40;       // the angle (in degrees) of a shark that he cannot see. Middle of the blind spot angle is right behind the shark
 
 constexpr bool WALL = false;                    // if true, applies the walls around the canvas, else applies scene warping
 
@@ -232,7 +234,8 @@ bool operator< (const Food<wall, fish_sense_dist> &left, const Food<wall, fish_s
     return left.id < right.id;
 }
 
-template<int fish_sense_dist, int fish_max_speed, bool wall, int fish_dim_ellipse_x, int fish_dim_ellipse_y>
+template<int fish_sense_dist, int fish_max_speed, int fish_fear_steps, 
+         int fish_dim_ellipse_x, int fish_dim_ellipse_y,  bool wall>
 class Fish {
 public:
     using Food_t = Food<wall, fish_sense_dist>;
@@ -241,12 +244,14 @@ public:
     glm::vec2 pos;
     glm::vec2 dir;
     int id;
+    int fear_steps;
     bool alive=true;
 
     Fish(int id) {
         this->id = id;
         this->pos = getRandomPlace<WIDTH, HEIGHT>();
         this->dir = getRandomDirection();
+        this->fear_steps = 0;
     }
 
     void step(
@@ -293,9 +298,14 @@ public:
         float noise = dist(rng);
         avg_angle += noise;
 
+        // behaviour depends on if fish has a fear behaviour activated at the moment 
         // momentum - consider previous direction as a base to add the forces
-        this->dir = this->dir * FISH_MOMENTUM_CONSTANT;
-
+        if (this->fear_steps > 0) {
+            this->dir = this->dir * FISH_FEAR_MOMENTUM_CONSTANT;
+        } else {
+            this->dir = this->dir * FISH_MOMENTUM_CONSTANT;
+        }
+        
         // alignment force
         glm::vec2 allignment_vec = glm::vec2(cos(avg_angle), sin(avg_angle));
         allignment_vec *= ALIGNMENT_CONSTANT;
@@ -330,6 +340,7 @@ public:
 
         // repulse force from each shark
         int i = 0;
+        bool near_shark = false;
         for (auto & shark_pos: sharks_pos) {
             glm::vec2 shark_mouth_position = getMouthFromCenter(shark_pos,sharks_direction[i]);
 
@@ -339,8 +350,16 @@ public:
                 shark_repulsion_vec /= glm::length(shark_repulsion_vec); // divide by magnitude
                 shark_repulsion_vec *= SHARK_REPULSION_CONSTANT;
                 this->dir += shark_repulsion_vec;
+
+                // activate the fear mode
+                this->fear_steps = fish_fear_steps;
+                near_shark = true;
             }
             i++;
+        }
+        if (!near_shark && this->fear_steps != 0) {
+            // decrease the number of steps in fear remaining
+            this->fear_steps--;
         }
 
         // wall repulsion, if it is enabled
@@ -390,10 +409,11 @@ public:
 
 
 template<int shark_sense_dist, int shark_max_speed, int shark_kill_radius,
-        int fish_sense_dist, int fish_max_speed, bool wall, int fish_dim_ellipse_x, int fish_dim_ellipse_y>
+        int fish_sense_dist, int fish_max_speed, int fish_fear_steps, 
+        int fish_dim_ellipse_x, int fish_dim_ellipse_y, bool wall>
 class Shark {
 public:
-    using Fish_t = Fish<fish_sense_dist, fish_max_speed, wall, fish_dim_ellipse_x, fish_dim_ellipse_y>;
+    using Fish_t = Fish<fish_sense_dist, fish_max_speed, fish_fear_steps, fish_dim_ellipse_x, fish_dim_ellipse_y, wall>;
 
     // first Width, then Height
     glm::vec2 pos;
@@ -433,7 +453,7 @@ public:
             avg_p /= static_cast<float>(N);
             glm::vec2 hunt_vector = avg_p - this->pos;
             hunt_vector /= glm::length2(hunt_vector); // divide by its squared magnitude
-            hunt_vector *= HUNT_CONSTANT;
+            hunt_vector *= SHARK_HUNT_CONSTANT;
             this->dir += hunt_vector;
         }
 
@@ -467,12 +487,14 @@ public:
 
 template<int width, int height, int num_steps, int num_fish, int num_sharks, int num_food,
         int fish_sense_dist, int shark_sense_dist, int shark_kill_radius,
-        int fish_max_speed, int shark_max_speed, int fish_dim_ellipse_x, int fish_dim_ellipse_y, 
+        int fish_max_speed, int shark_max_speed, 
+        int fish_fear_steps, int fish_dim_ellipse_x, int fish_dim_ellipse_y, 
         int shark_blind_angle_deg, bool wall>
 class Scene {
 private:
-    using Fish_t = Fish<fish_sense_dist, fish_max_speed, wall, fish_dim_ellipse_x, fish_dim_ellipse_y>;
-    using Shark_t = Shark<shark_sense_dist, shark_max_speed, shark_kill_radius, fish_sense_dist, fish_max_speed, wall, fish_dim_ellipse_x, fish_dim_ellipse_y>;
+
+    using Fish_t = Fish<fish_sense_dist, fish_max_speed, fish_fear_steps, fish_dim_ellipse_x, fish_dim_ellipse_y, wall>;
+    using Shark_t = Shark<shark_sense_dist, shark_max_speed, shark_kill_radius, fish_sense_dist, fish_max_speed, fish_fear_steps, fish_dim_ellipse_x, fish_dim_ellipse_y, wall>;
     using Food_t = Food<wall, fish_sense_dist>;
 
     vector<Fish_t> swarm;
@@ -779,7 +801,8 @@ int main(int argc, char** argv) {
     // setup Scene
     Scene scene = Scene<WIDTH, HEIGHT, NUM_STEPS, NUM_FISH, NUM_SHARKS, NUM_FOOD,
             FISH_SENSE_DIST, SHARK_SENSE_DIST, SHARK_KILL_RADIUS,
-            FISH_MAX_SPEED, SHARK_MAX_SPEED, FISH_DIM_ELLIPSE_X, FISH_DIM_ELLIPSE_Y, 
+            FISH_MAX_SPEED, SHARK_MAX_SPEED, 
+            FISH_FEAR_CONSTANT, FISH_DIM_ELLIPSE_X, FISH_DIM_ELLIPSE_Y, 
             SHARK_BLIND_ANGLE_DEG, WALL>();
 
     // simulation
