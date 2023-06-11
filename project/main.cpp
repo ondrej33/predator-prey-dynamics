@@ -60,9 +60,10 @@ constexpr int SHARK_BLIND_ANGLE_DEG = 40;       // the angle (in degrees) of a s
 
 constexpr bool WALL = false;                    // if true, applies the walls around the canvas, else applies scene warping
 
-// also help/debug parameters to enable help/debug messages or logs
+// also help/debug/output parameters
 bool debug = true; // this enables printing + logging to json
 bool help = false;
+string LOG_FILEPATH = "output.json";
 
 void parse_arguments(int argc, char** argv) {
     // Define the command line options
@@ -70,6 +71,7 @@ void parse_arguments(int argc, char** argv) {
     desc.add_options()
             ("help", "prints help")
             ("debug", boost::program_options::value<bool>(&debug), "Enable prints for progress")
+            ("log-filepath", boost::program_options::value<string>(&LOG_FILEPATH), "File to write the log for visualization to")
             ("fish-momentum", boost::program_options::value<float>(&FISH_MOMENTUM_CONSTANT), "Momentum constant for fish")
             ("alignment", boost::program_options::value<float>(&ALIGNMENT_CONSTANT), "Alignment constant")
             ("cohesion", boost::program_options::value<float>(&COHESION_CONSTANT), "Cohesion constant")
@@ -787,12 +789,43 @@ int main(int argc, char** argv) {
     if (help)
         return 0;
 
-    const string output_filepath = "output.json";
-
     // =============================
 
     if (debug) {
-        std::cout << "Simulation starts." << std::endl;
+        // print all params just in case we need to check them
+        std::cout << "Parameter values:" << std::endl << std::endl;
+
+        std::cout << ">FISH_MOMENTUM_CONSTANT: " << FISH_MOMENTUM_CONSTANT << std::endl;
+        std::cout << ">FISH_FEAR_MOMENTUM_CONSTANT: " << FISH_FEAR_MOMENTUM_CONSTANT << std::endl;
+        std::cout << ">ALIGNMENT_CONSTANT: " << ALIGNMENT_CONSTANT << std::endl;
+        std::cout << ">COHESION_CONSTANT: " << COHESION_CONSTANT << std::endl;
+        std::cout << ">SEPARATION_CONSTANT: " << SEPARATION_CONSTANT << std::endl;
+        std::cout << ">SHARK_REPULSION_CONSTANT: " << SHARK_REPULSION_CONSTANT << std::endl;
+        std::cout << ">FOOD_ATTRACTION_CONSTANT: " << FOOD_ATTRACTION_CONSTANT << std::endl;
+        std::cout << ">WIDTH: " << WIDTH << std::endl;
+        std::cout << ">HEIGHT: " << HEIGHT << std::endl;
+        std::cout << ">NUM_STEPS: " << NUM_STEPS << std::endl;
+        std::cout << ">NUM_FISH: " << NUM_FISH << std::endl;
+        std::cout << ">NUM_SHARKS: " << NUM_SHARKS << std::endl;
+        std::cout << ">NUM_FOOD: " << NUM_FOOD << std::endl;
+        std::cout << ">FISH_SENSE_DIST: " << FISH_SENSE_DIST << std::endl;
+        std::cout << ">SHARK_SENSE_DIST: " << SHARK_SENSE_DIST << std::endl;
+        std::cout << ">FISH_MAX_SPEED: " << FISH_MAX_SPEED << std::endl;
+        std::cout << ">SHARK_MAX_SPEED: " << SHARK_MAX_SPEED << std::endl;
+        std::cout << ">SHARK_KILL_RADIUS: " << SHARK_KILL_RADIUS << std::endl;
+        std::cout << ">SHARK_MOMENTUM_CONSTANT: " << SHARK_MOMENTUM_CONSTANT << std::endl;
+        std::cout << ">SHARK_SEARCH_CONSTANT: " << SHARK_SEARCH_CONSTANT << std::endl;
+        std::cout << ">SHARK_HUNT_CONSTANT: " << SHARK_HUNT_CONSTANT << std::endl;
+        std::cout << ">FISH_DIM_ELLIPSE_X: " << FISH_DIM_ELLIPSE_X << std::endl;
+        std::cout << ">FISH_DIM_ELLIPSE_Y: " << FISH_DIM_ELLIPSE_Y << std::endl;
+        std::cout << ">FISH_FEAR_CONSTANT: " << FISH_FEAR_CONSTANT << std::endl;
+        std::cout << ">SHARK_DIM_ELLIPSE_X: " << SHARK_DIM_ELLIPSE_X << std::endl;
+        std::cout << ">SHARK_DIM_ELLIPSE_Y: " << SHARK_DIM_ELLIPSE_Y << std::endl;
+        std::cout << ">SHARK_BLIND_ANGLE_DEG: " << SHARK_BLIND_ANGLE_DEG << std::endl;
+        std::cout << ">WALL: " << WALL << std::endl;
+        std::cout << ">LOG_FILEPATH: " << LOG_FILEPATH << std::endl;
+
+        std::cout << std::endl << "Simulation starts." << std::endl;
     }
 
     // Start measuring time
@@ -806,7 +839,7 @@ int main(int argc, char** argv) {
             SHARK_BLIND_ANGLE_DEG, WALL>();
 
     // simulation
-    scene.simulate(output_filepath);
+    scene.simulate(LOG_FILEPATH);
 
     // Stop measuring time
     std::clock_t end = std::clock();
