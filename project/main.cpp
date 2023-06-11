@@ -77,7 +77,7 @@ void parse_arguments(int argc, char** argv) {
             ("cohesion", boost::program_options::value<float>(&COHESION_CONSTANT), "Cohesion constant")
             ("separation", boost::program_options::value<float>(&SEPARATION_CONSTANT), "Separation constant")
             ("shark-repulsion", boost::program_options::value<float>(&SHARK_REPULSION_CONSTANT), "Shark repulsion constant")
-            ("food", boost::program_options::value<float>(&FOOD_ATTRACTION_CONSTANT), "Fish food attraction constant");
+            ("food-attraction", boost::program_options::value<float>(&FOOD_ATTRACTION_CONSTANT), "Fish food attraction constant");
 
     // Parse the command line arguments
     boost::program_options::variables_map vm;
