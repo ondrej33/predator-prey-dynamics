@@ -91,27 +91,70 @@ def get_n_fittest_individuals(
     return sorted(population_with_fitness, key=lambda x: x[1])[:n]
 
 
-def tournament_step(population_with_fitness, k) -> Individual:
-    """Randomly select `k` individuals and take the best one."""
-    selected_k = random.choices(population_with_fitness, k=k)
-    return get_fittest_individual(selected_k)[0]
-
-
-def tournament_selection(population_with_fitness, k) -> list[Individual]:
+def universal_sampling(
+        population_with_fitness: list[tuple[Individual, float]],
+        num_parents: int
+        ) -> list[Individual]:
     """
-    Select parents for reproduction using tournament (of size `k`) selection.
-    For now, we select `population_size` parents, with repetition.
+    Perform universal sampling to select parents for reproduction.
+    Selects `num_parents` parents from the population.
     """
-    selected_parents = []
-    population_size = len(population_with_fitness)
-    for _ in range(population_size):
-        selected_parents.append(tournament_step(population_with_fitness, k))
-    return selected_parents
+    # Descending Sort
+    population_with_fitness.sort(key=lambda x: x[1], reverse=True)
+    # cal total fitness
+    total_fitness = sum(fitness for _, fitness in population_with_fitness)
+    # for analysis or some shit
+    # fitness_percentages = [fitness / total_fitness for _, fitness in population_with_fitness]
+    # step size for the roulette
+    step_size = total_fitness / num_parents
+    # Random starting point
+    start_pos = random.uniform(0, step_size)
+    parents = []
+    current_pos = start_pos
+    # sum of fitness for the loop
+    added_fitness = 0
+
+    for individual, fitness in population_with_fitness:
+        added_fitness += fitness
+        while added_fitness >= current_pos:
+            parents.append(individual)
+            current_pos += step_size
+
+    return parents
 
 
-def selection_step(population_with_fitness, tournament_k) -> list[Individual]:
-    """Select parents for reproduction. For now, we use tournament."""
-    return tournament_selection(population_with_fitness, tournament_k)
+def selection_step(
+        population_with_fitness: list[tuple[Individual, float]],
+        num_parents: int
+) -> list[Individual]:
+    """
+    Select parents for reproduction.
+    Uses universal sampling to select parents from the population.
+    """
+    return universal_sampling(population_with_fitness, num_parents)
+
+
+# def tournament_step(population_with_fitness, k) -> Individual:
+#     """Randomly select `k` individuals and take the best one."""
+#     selected_k = random.choices(population_with_fitness, k=k)
+#     return get_fittest_individual(selected_k)[0]
+#
+#
+# def tournament_selection(population_with_fitness, k) -> list[Individual]:
+#     """
+#     Select parents for reproduction using tournament (of size `k`) selection.
+#     For now, we select `population_size` parents, with repetition.
+#     """
+#     selected_parents = []
+#     population_size = len(population_with_fitness)
+#     for _ in range(population_size):
+#         selected_parents.append(tournament_step(population_with_fitness, k))
+#     return selected_parents
+#
+#
+# def selection_step(population_with_fitness, tournament_k) -> list[Individual]:
+#     """Select parents for reproduction. For now, we use tournament."""
+#     return tournament_selection(population_with_fitness, tournament_k)
 
 
 def crossover(parent1: Individual, parent2: Individual) -> tuple[Individual, Individual]:
@@ -257,7 +300,7 @@ def evolution(
     debug: bool = False,
 ) ->  list[tuple[Individual, float]]:
     """Run the whole evolution process."""
-    TOURNAMENT_K = 6 # for now, we'll use tournament selection, this will change
+    # TOURNAMENT_K = 6 # for now, we'll use tournament selection, this will change
 
     # generate the population and evaluate it
     population = generate_population(population_size, len_individual)
@@ -266,11 +309,11 @@ def evolution(
     print_generation_info(0, time.time() - start_time, population_with_fitness)
 
     iteration = 0
-    while iteration < generations_max:
+    while iteration < int(generations_max):
         iteration += 1
 
         # select parents from the population
-        selected_parents = selection_step(population_with_fitness, TOURNAMENT_K)
+        selected_parents = selection_step(population_with_fitness, 2)
 
         # generate new offspring set (do the crossovers and mutations)
         generated_offsprings = reproduction_step(selected_parents, mutation_prob, crossover_prob)
