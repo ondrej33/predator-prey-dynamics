@@ -8,7 +8,6 @@ from multiprocessing import Pool
 from functools import partial
 
 
-CHROMOSOME_LENGTH = 5
 Individual: TypeAlias = list[float]
 
 
@@ -31,7 +30,7 @@ def generate_population(
     return [generate_individual(individual_len) for _ in range(num_population)]
 
 
-def get_simulation_result(individual: Individual) -> int:
+def get_simulation_result(individual: Individual) -> tuple[int, int]:
     """Run the simulation with individual's parameters as arguments"""
     
     output = subprocess.run([
@@ -42,16 +41,18 @@ def get_simulation_result(individual: Individual) -> int:
         "--cohesion", str(individual[2]),
         "--separation", str(individual[3]),
         "--shark-repulsion", str(individual[4]),
+        "--food-attraction",  str(individual[5]),
         ], stdout=subprocess.PIPE)
     output = output.stdout.decode("utf-8").strip()
 
     # output is in form "TOTAL FISH EATEN: N\nTOTAL FOOD EATEN: N" - return the number
-    return int(output.split('\n')[0].split()[-1])
+    return int(output.split('\n')[0].split()[-1]), int(output.split('\n')[1].split()[-1])
 
 
 def eval_individual(
         individual: Individual, 
-        simulations_per_indiv: int
+        simulations_per_indiv: int,
+        food_weight: float
         ) -> float:
     """
     Evaluate fitness of a `individual`.
@@ -61,16 +62,19 @@ def eval_individual(
     # run all simulations in parallel
     with Pool(simulations_per_indiv) as pool:
         async_results = [pool.apply_async(get_simulation_result, args=([individual])) for _ in range(simulations_per_indiv)]
-        results = [ar.get() for ar in async_results]
-        return sum(results) / simulations_per_indiv
+        result_tuples = [ar.get() for ar in async_results]
+        # results are pairs of <fish_dead, food_eaten>, combine them to get one number
+        aggregated_results = [res_tuple[0] - food_weight * res_tuple[1] for res_tuple in result_tuples]
+        return sum(aggregated_results) / simulations_per_indiv
     
 
 def eval_population(
         population: list[Individual], 
-        simulations_per_indiv: int
+        simulations_per_indiv: int,
+        food_weight: float
         ) -> list[tuple[Individual, float]]:
     """Evaluate fitness of whole population, return list of tuples <individual, fitness>."""
-    return [(indiv, eval_individual(indiv, simulations_per_indiv)) for indiv in population]
+    return [(indiv, eval_individual(indiv, simulations_per_indiv, food_weight)) for indiv in population]
 
 
 def get_fittest_individual(
@@ -218,16 +222,18 @@ def reproduction_step(
     offspring_population.extend(offspring_population)
     offspring_population = map(lambda x: mutate(x, mutation_prob), offspring_population)
 
-    # TODO: filter the duplicate copies at this point, instead of doing it later after running simulations
-
     return list(offspring_population)
 
 
 def are_too_similar(indiv1: Individual, indiv2: Individual)-> bool:
     """Check if two individuals are so similar that they can be considered redundant."""
     for i in range(len(indiv1)):
-        if indiv1[i] - indiv2[i] > 1e-4:
+        if indiv1[i] - indiv2[i] > 1e-2:
             return False
+        # if the value is too small, consider smaller treshold
+        if min(indiv1[i], indiv2[i]) < 1e-2 and indiv1[i] - indiv2[i] > 1e-4:  
+            return False
+        
     return True
 
 
@@ -239,6 +245,7 @@ def remove_duplicates(
 
     for (indiv, score1) in combined_population:
         skip_indiv = False
+        # TODO: choose how to choose new score for the duplicates
         for (unique_indiv, score2) in unique_population:
             if are_too_similar(indiv, unique_indiv):
                 skip_indiv = True
@@ -288,6 +295,15 @@ def print_generation_info(
     print(f"], SCORE: {score:.2f}")
 
 
+
+def print_individual_with_fitness(indiv_w_fitness: tuple[Individual, float]):
+    print("[", end="")
+    for value in indiv_w_fitness[0]:
+        print(f"{value:.5f}", end=", ")
+    print("]", end="  ")
+    print(f"{indiv_w_fitness[1]:.5f}")
+
+
 def evolution(
     mutation_prob: float,
     crossover_prob: float,
@@ -297,14 +313,15 @@ def evolution(
     len_individual: int,
     start_time: float,
     n_best_to_return: int,
+    food_weight: float,
     debug: bool = False,
 ) ->  list[tuple[Individual, float]]:
     """Run the whole evolution process."""
-    # TOURNAMENT_K = 6 # for now, we'll use tournament selection, this will change
+    TOURNAMENT_K = 6 # for now, we'll use tournament selection, this will change
 
     # generate the population and evaluate it
     population = generate_population(population_size, len_individual)
-    population_with_fitness = eval_population(population, simulations_per_indiv)
+    population_with_fitness = eval_population(population, simulations_per_indiv, food_weight)
     # get the best individual of the new population and log it
     print_generation_info(0, time.time() - start_time, population_with_fitness)
 
@@ -319,12 +336,16 @@ def evolution(
         generated_offsprings = reproduction_step(selected_parents, mutation_prob, crossover_prob)
 
         # evaluate fitness of the offspring population
-        offsprings_with_fitness = eval_population(generated_offsprings, simulations_per_indiv)
+        offsprings_with_fitness = eval_population(generated_offsprings, simulations_per_indiv, food_weight)
 
-        for i in sorted(population_with_fitness, key=lambda x: x[1]):
-            print("p", i)
-        for i in sorted(offsprings_with_fitness, key=lambda x: x[1]):
-            print("o", i)
+        if debug:
+            for i in sorted(population_with_fitness, key=lambda x: x[1]):
+                print("p ", end="")
+                print_individual_with_fitness(i)
+            for i in sorted(offsprings_with_fitness, key=lambda x: x[1]):
+                print("o ", end="")
+                print_individual_with_fitness(i)
+            print()
 
         # create new population using the old and new populations
         population_with_fitness = replacement_step(population_with_fitness, offsprings_with_fitness)
@@ -344,13 +365,31 @@ def main(
         simulations_per_indiv: int, 
         len_individual: int,
         n_best_to_return: int,
+        food_weight: float,
         debug: bool = False,
         ):
-    # prepare some things and logging
-    start = time.time()
-    if debug:
-        print("Starting computation.\n")
     
+    # run a single simulation and save the info regarding fixed parameters used in it (logging for later)
+    if debug:
+        now = datetime.now()
+        formatted_now = now.strftime("%Y-%m-%d_%H-%M-%S")
+
+        print("Default simulation parameters:")
+        output = subprocess.run([
+            './cpp_simulation', 
+            '--debug', 'true',
+            '--log-filepath', f"logs/log-default-simulation_{formatted_now}.txt"
+        ], stdout=subprocess.PIPE)
+        output = output.stdout.decode("utf-8")
+        print(output.split("Parameter values:")[1].split("Simulation starts.")[0].strip())
+        print()
+
+        formatted_now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        print(f"Starting computation at {formatted_now}.\n")
+
+
+    start = time.time()
+
     # run the evolution
     n_best_individuals = evolution(
         mutation_prob, 
@@ -361,6 +400,7 @@ def main(
         len_individual,
         start,
         n_best_to_return,
+        food_weight,
         debug,
     )
     
@@ -383,14 +423,15 @@ if __name__ == "__main__":
     )
 
     # algorithm parameters (all tunable, but with default values)
-    parser.add_argument('-m', '--mutation_prob', default=0.25)
-    parser.add_argument('-c', '--crossover_prob', default=0.4)
-    parser.add_argument('-p', '--population_size', default=15) # ideally use 50-100?
+    parser.add_argument('-m', '--mutation_prob', default=0.2)
+    parser.add_argument('-c', '--crossover_prob', default=0.6)
+    parser.add_argument('-p', '--population_size', default=20) # ideally use 50-100?
     parser.add_argument('-g', '--generations_max', default=20) # ideally use 50-100?
-    parser.add_argument('-s', '--simulations_per_indiv', default=8) # ideally use 8 or 16, depends on cores in cpu
-    parser.add_argument('-l', '--len_individual', default=5)
+    parser.add_argument('-s', '--simulations_per_indiv', default=6) # ideally use 8 or 16, depends on cores in cpu
+    parser.add_argument('-l', '--len_individual', default=6)
     parser.add_argument('-r', '--random_seed', default=True)
     parser.add_argument('-n', '--n_best_to_return', default=10)
+    parser.add_argument('-f', '--food_weight', default=0.001)
     parser.add_argument('-d', '--debug', default=True)
     args = parser.parse_args()
 
@@ -400,7 +441,7 @@ if __name__ == "__main__":
         random.seed(42)
 
     if args.debug:
-        print("Parameters:")
+        print("Evolution parameters:")
         print(args)
         print()
 
@@ -412,5 +453,6 @@ if __name__ == "__main__":
         args.simulations_per_indiv,
         args.len_individual,
         args.n_best_to_return,
+        args.food_weight,
         args.debug,
     )
