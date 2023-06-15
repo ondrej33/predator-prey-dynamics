@@ -32,7 +32,7 @@ constexpr int WIDTH = 400;                      // scene width
 constexpr int HEIGHT = 400;                     // scene height
 
 constexpr int NUM_STEPS = 1000;                 // number of steps to simulate
-constexpr int NUM_FISH = 50;                   // total number of fish
+constexpr int NUM_FISH = 400;                   // total number of fish
 constexpr int NUM_SHARKS = 1;                   // number of sharks
 constexpr int NUM_FOOD = 50;                    // number of food in simulation
 
