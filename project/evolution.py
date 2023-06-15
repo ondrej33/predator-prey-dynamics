@@ -11,6 +11,14 @@ from functools import partial
 Individual: TypeAlias = list[float]
 
 
+def log(file, content, also_print=True, end="\n"):
+    file.write(content + end)
+    file.flush()
+    if also_print:
+        print(content, end=end)
+
+
+
 def generate_individual(individual_len: int) -> Individual:  
     """
     Randomly generate an individual of size `chromosome_len`.
@@ -280,25 +288,25 @@ def replacement_step(
     return elitist_replacement(population_with_fitness, offsprings_with_fitness)
 
 
-def print_generation_info(
+def log_generation_info(
         generation: int,
         run_time: float, 
-        population_with_fitness: list[tuple[Individual, float]]
+        population_with_fitness: list[tuple[Individual, float]],
+        log_file,
         ):
-    print(f"GEN {generation}, TIME {run_time:.2f}, PARAMS: [ ", end="")
+    log(log_file, f"GEN {generation}, TIME {run_time:.2f}, PARAMS: [ ", end="")
     fittest_indiv, score = get_fittest_individual(population_with_fitness)
     for param in fittest_indiv:
-        print(f"{param:.5f}", end=", ")
-    print(f"], SCORE: {score:.2f}")
+        log(log_file, f"{param:.5f}", end=", ")
+    log(log_file, f"], SCORE: {score:.2f}")
 
 
-
-def print_individual_with_fitness(indiv_w_fitness: tuple[Individual, float]):
-    print("[", end="")
+def log_individual_with_fitness(indiv_w_fitness: tuple[Individual, float], log_file):
+    log(log_file, "[", end="")
     for value in indiv_w_fitness[0]:
-        print(f"{value:.5f}", end=", ")
-    print("]", end="  ")
-    print(f"{indiv_w_fitness[1]:.5f}")
+        log(log_file, f"{value:.5f}", end=", ")
+    log(log_file, "]", end="  ")
+    log(log_file, f"{indiv_w_fitness[1]:.5f}")
 
 
 def evolution(
@@ -311,6 +319,7 @@ def evolution(
     start_time: float,
     n_best_to_return: int,
     food_weight: float,
+    log_file,
     debug: bool = False,
 ) ->  list[tuple[Individual, float]]:
     """Run the whole evolution process."""
@@ -320,7 +329,7 @@ def evolution(
     population = generate_population(population_size, len_individual)
     population_with_fitness = eval_population(population, simulations_per_indiv, food_weight)
     # get the best individual of the new population and log it
-    print_generation_info(0, time.time() - start_time, population_with_fitness)
+    log_generation_info(0, time.time() - start_time, population_with_fitness, log_file)
 
     iteration = 0
     while iteration < generations_max:
@@ -337,18 +346,18 @@ def evolution(
 
         if debug:
             for i in sorted(population_with_fitness, key=lambda x: x[1]):
-                print("p ", end="")
-                print_individual_with_fitness(i)
+                log(log_file, "p ", end="")
+                log_individual_with_fitness(i, log_file)
             for i in sorted(offsprings_with_fitness, key=lambda x: x[1]):
-                print("o ", end="")
-                print_individual_with_fitness(i)
-            print()
+                log(log_file, "o ", end="")
+                log_individual_with_fitness(i, log_file)
+            log(log_file, "")
 
         # create new population using the old and new populations
         population_with_fitness = replacement_step(population_with_fitness, offsprings_with_fitness)
  
         # get the best individual of the new population and log it
-        print_generation_info(iteration, time.time() - start_time, population_with_fitness)
+        log_generation_info(iteration, time.time() - start_time, population_with_fitness, log_file)
 
     # return the fittest individual
     return get_n_fittest_individuals(population_with_fitness, n_best_to_return)
@@ -366,24 +375,27 @@ def main(
         debug: bool = False,
         ):
     
+    # prepare logging file
+    now = datetime.now()
+    formatted_now = now.strftime("%Y-%m-%d_%H-%M-%S")
+    log_file = open(f"logs/log-evolution_{formatted_now}.txt", "w")
+
     # run a single simulation and save the info regarding fixed parameters used in it (logging for later)
     if debug:
-        now = datetime.now()
-        formatted_now = now.strftime("%Y-%m-%d_%H-%M-%S")
+        log(log_file, "Evolution parameters:")
+        log(log_file, str(args) + "\n")
 
-        print("Default simulation parameters:")
+        log(log_file, "Default simulation parameters:")
         output = subprocess.run([
             './cpp_simulation', 
             '--debug', 'true',
             '--log-filepath', f"logs/log-default-simulation_{formatted_now}.txt"
         ], stdout=subprocess.PIPE)
         output = output.stdout.decode("utf-8")
-        print(output.split("Parameter values:")[1].split("Simulation starts.")[0].strip())
-        print()
+        log(log_file, output.split("Parameter values:")[1].split("Simulation starts.")[0].strip() + "\n")
 
         formatted_now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        print(f"Starting computation at {formatted_now}.\n")
-
+        log(log_file, f"Starting computation at {formatted_now}.\n")
 
     start = time.time()
 
@@ -398,17 +410,20 @@ def main(
         start,
         n_best_to_return,
         food_weight,
+        log_file,
         debug,
     )
     
     # sum up the results
     end = time.time()
     if debug:
-        print("Computation finished.")
-        print(f"{n_best_to_return} best individuals of the last generation:")
+        log(log_file, "\nComputation finished.")
+        log(log_file, f"{n_best_to_return} best individuals of the last generation:")
         for indiv in n_best_individuals:
-            print(f">>    {indiv}")
-        print(f"Total time:", end - start)
+            log(log_file, f">>    ", end="")
+            log_individual_with_fitness(indiv, log_file)
+        log(log_file, f"Total time: {end - start}")  
+    log_file.close()
 
 
 if __name__ == "__main__":
@@ -423,7 +438,7 @@ if __name__ == "__main__":
     parser.add_argument('-m', '--mutation_prob', default=0.2)
     parser.add_argument('-c', '--crossover_prob', default=0.6)
     parser.add_argument('-p', '--population_size', default=20) # ideally use 50-100?
-    parser.add_argument('-g', '--generations_max', default=20) # ideally use 50-100?
+    parser.add_argument('-g', '--generations_max', default=1) # ideally use 50-100?
     parser.add_argument('-s', '--simulations_per_indiv', default=6) # ideally use 8 or 16, depends on cores in cpu
     parser.add_argument('-l', '--len_individual', default=6)
     parser.add_argument('-r', '--random_seed', default=True)
@@ -436,11 +451,6 @@ if __name__ == "__main__":
         random.seed(datetime.now().timestamp())
     else:
         random.seed(42)
-
-    if args.debug:
-        print("Evolution parameters:")
-        print(args)
-        print()
 
     main(
         args.mutation_prob, 
