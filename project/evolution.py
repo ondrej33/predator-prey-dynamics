@@ -301,7 +301,7 @@ def evolution(
 ) ->  list[tuple[Individual, float]]:
     """Run the whole evolution process."""
     # TOURNAMENT_K = 6 # for now, we'll use tournament selection, this will change
-
+    num_parents=2
     # generate the population and evaluate it
     population = generate_population(population_size, len_individual)
     population_with_fitness = eval_population(population, simulations_per_indiv)
@@ -313,7 +313,7 @@ def evolution(
         iteration += 1
 
         # select parents from the population
-        selected_parents = selection_step(population_with_fitness, 2)
+        selected_parents = selection_step(population_with_fitness, num_parents)
 
         # generate new offspring set (do the crossovers and mutations)
         generated_offsprings = reproduction_step(selected_parents, mutation_prob, crossover_prob)
