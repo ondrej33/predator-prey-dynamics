@@ -19,7 +19,7 @@ using namespace std;
 // their values can be given via CLI arguments
 // basically factors to multiply various forces of FISH
 float FISH_MOMENTUM_CONSTANT = 0.75;
-float FISH_FEAR_MOMENTUM_CONSTANT = 0.8;
+float FISH_FEAR_MOMENTUM_CONSTANT = 0.8; // will be automatically changed to correspond to FISH_MOMENTUM_CONSTANT
 float ALIGNMENT_CONSTANT = 0.25;
 float COHESION_CONSTANT = 0.05;
 float SEPARATION_CONSTANT = 20.;
@@ -778,8 +778,10 @@ public:
 };
 
 int main(int argc, char** argv) {
-    // as constants at the beginning
+    // parse input parameters at the beginning
     parse_arguments(argc, argv);
+    // adjust fear momentum based on momentum parameter provided as argument
+    FISH_FEAR_MOMENTUM_CONSTANT = FISH_MOMENTUM_CONSTANT * 1.1;
 
     // check if fish sense dist is bigger than dimensions of the fish (represented as ellipse)
     assert(max(FISH_DIM_ELLIPSE_X, FISH_DIM_ELLIPSE_Y) < FISH_SENSE_DIST &&
@@ -792,7 +794,7 @@ int main(int argc, char** argv) {
     // =============================
 
     if (debug) {
-        // print all params just in case we need to check them
+        // print all params in order to have them logged
         std::cout << "Parameter values:" << std::endl << std::endl;
 
         std::cout << ">FISH_MOMENTUM_CONSTANT: " << FISH_MOMENTUM_CONSTANT << std::endl;

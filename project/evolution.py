@@ -18,7 +18,6 @@ def log(file, content, also_print=True, end="\n"):
         print(content, end=end)
 
 
-
 def generate_individual(individual_len: int) -> Individual:  
     """
     Randomly generate an individual of size `chromosome_len`.
