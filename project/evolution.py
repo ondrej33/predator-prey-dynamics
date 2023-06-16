@@ -6,6 +6,7 @@ from typing import TypeAlias
 import time
 from multiprocessing import Pool
 from functools import partial
+from copy import deepcopy
 
 
 Individual: TypeAlias = list[float]
@@ -188,7 +189,7 @@ def mutate(individual: Individual, mutation_prob: float) -> Individual:
     Mutate the given `individual`.
     Mutation probability is a probablity of mutating each gene of the individual.
     """
-    mutated = individual.copy()
+    mutated = deepcopy(individual)
     for i in range(len(mutated)):
         # decide if to mutate or not
         if random.random() < mutation_prob:
@@ -206,24 +207,30 @@ def reproduction_step(
         selected_parents: list[Individual], 
         mutation_prob: float,
         crossover_prob: float,
+        mutation_copies: int,
         ) -> list[Individual]:
     """
     Generate new offspring set from parents by applying crossover and mutations.
     Mutation probability is probablity of mutating each gene of the individual.
     Crossover probability is probablity of combining selected pairs of parents.
+    Mutation copies is how many copies of each of the indivs (both selected parents and new offsprings) are used before applying mutations.
     """
     # shuffle the selected parents first, so that the order is 'random'
     random.shuffle(selected_parents)
 
-    offspring_population = selected_parents.copy()
+    # first copy the parents (this copy will be only used for mutations later)
+    offspring_population = deepcopy(selected_parents)
 
     # do crossovers and add results to offspring population
     for i in range(1, len(selected_parents), 2):
         if random.random() < crossover_prob:
             offspring_population.extend(crossover(selected_parents[i - 1], selected_parents[i]))
 
-    # apply mutations to all individuals, generate 2 mutated copies of each offspring
-    offspring_population.extend(offspring_population)
+    # generate `mutation_copies` copies of each indiv in current "offspring" population
+    offspring_population_copy = deepcopy(offspring_population)
+    for i in range(mutation_copies - 1):
+        offspring_population.extend(offspring_population_copy)
+    # apply mutations to all of these individuals one by one
     offspring_population = map(lambda x: mutate(x, mutation_prob), offspring_population)
 
     return list(offspring_population)
@@ -266,7 +273,7 @@ def elitist_replacement(
     """Use elitism to get new population from the previous population + offsprings."""
     population_size = len(population_with_fitness)
 
-    combined_population = population_with_fitness.copy()
+    combined_population = deepcopy(population_with_fitness)
     combined_population.extend(offsprings_with_fitness)
     # sort the population based on fitness
     combined_population.sort(key=lambda x: x[1])
@@ -315,6 +322,7 @@ def evolution(
     generations_max: int,
     simulations_per_indiv: int,
     len_individual: int,
+    mutation_copies: int,
     start_time: float,
     n_best_to_return: int,
     food_weight: float,
@@ -338,7 +346,7 @@ def evolution(
         selected_parents = selection_step(population_with_fitness, TOURNAMENT_K)
 
         # generate new offspring set (do the crossovers and mutations)
-        generated_offsprings = reproduction_step(selected_parents, mutation_prob, crossover_prob)
+        generated_offsprings = reproduction_step(selected_parents, mutation_prob, crossover_prob, mutation_copies)
 
         # evaluate fitness of the offspring population
         offsprings_with_fitness = eval_population(generated_offsprings, simulations_per_indiv, food_weight)
@@ -369,6 +377,7 @@ def main(
         generations_max: int, 
         simulations_per_indiv: int, 
         len_individual: int,
+        mutation_copies: int,
         n_best_to_return: int,
         food_weight: float,
         debug: bool = False,
@@ -406,6 +415,7 @@ def main(
         generations_max, 
         simulations_per_indiv,
         len_individual,
+        mutation_copies,
         start,
         n_best_to_return,
         food_weight,
@@ -437,12 +447,13 @@ if __name__ == "__main__":
     parser.add_argument('-m', '--mutation_prob', default=0.2)
     parser.add_argument('-c', '--crossover_prob', default=0.6)
     parser.add_argument('-p', '--population_size', default=20) # ideally use 50-100?
-    parser.add_argument('-g', '--generations_max', default=1) # ideally use 50-100?
+    parser.add_argument('-g', '--generations_max', default=20) # ideally use 50-100?
     parser.add_argument('-s', '--simulations_per_indiv', default=6) # ideally use 8 or 16, depends on cores in cpu
     parser.add_argument('-l', '--len_individual', default=6)
+    parser.add_argument('-f', '--food_weight', default=0.0) # TODO: decide on value, either 0 or 0.001
+    parser.add_argument('-t', '--mutation_copies', default=2) # how many copies of each indiv before running mutations
     parser.add_argument('-r', '--random_seed', default=True)
     parser.add_argument('-n', '--n_best_to_return', default=10)
-    parser.add_argument('-f', '--food_weight', default=0.001)
     parser.add_argument('-d', '--debug', default=True)
     args = parser.parse_args()
 
@@ -458,6 +469,7 @@ if __name__ == "__main__":
         args.generations_max, 
         args.simulations_per_indiv,
         args.len_individual,
+        args.mutation_copies,
         args.n_best_to_return,
         args.food_weight,
         args.debug,
