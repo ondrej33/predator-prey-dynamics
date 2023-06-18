@@ -2,7 +2,7 @@ import argparse
 from datetime import datetime
 import random
 import subprocess
-from typing import TypeAlias
+from typing import Optional, TypeAlias
 import time
 from multiprocessing import Pool
 from functools import partial
@@ -24,10 +24,15 @@ def generate_individual(individual_len: int) -> Individual:
     Randomly generate an individual of size `chromosome_len`.
     Sample from from 2 different distributions - [0,1] and [1,10] - to achieve diverse (both small & larger) values.
     """
-    # select which distribution (low or high) will be used to get value for each parameter
+    # select which distribution (high or low) will be used to get value for each parameter
     distrib_choices = [random.random() > 0.5 for _ in range(individual_len)]
+
     # randomly sample from low or high distributions
-    return [random.uniform(1, 10) if choice else random.random() for choice in distrib_choices]
+    indiv = [random.uniform(1, 10) if choice else random.random() for choice in distrib_choices]
+    # however, first parameter (momentum) must be from [0.3,1]
+    indiv[0] = random.uniform(0.3, 1)
+    return indiv
+
 
 
 def generate_population(
@@ -200,6 +205,13 @@ def mutate(individual: Individual, mutation_prob: float) -> Individual:
                 mutated[i] *= factor
             else: 
                 mutated[i] /= factor
+    
+    # however, the first param (momentum) must be from [0.3,1]
+    if mutated[0] > 1:
+        mutated[0] = 1
+    elif mutated[0] < 0.3:
+        mutated[0] = 0.3
+
     return mutated
 
 
@@ -339,6 +351,8 @@ def evolution(
     log_generation_info(0, time.time() - start_time, population_with_fitness, log_file)
 
     iteration = 0
+    iterations_without_change = 0
+    _, best_score = get_fittest_individual(population_with_fitness)
     while iteration < generations_max:
         iteration += 1
 
@@ -366,6 +380,16 @@ def evolution(
         # get the best individual of the new population and log it
         log_generation_info(iteration, time.time() - start_time, population_with_fitness, log_file)
 
+        # check for early stopping
+        _, current_score = get_fittest_individual(population_with_fitness)
+        if current_score == best_score:
+            iterations_without_change += 1
+        else:
+            iterations_without_change = 0
+            best_score = current_score
+        # TODO: finish early stopping
+
+
     # return the fittest individual
     return get_n_fittest_individuals(population_with_fitness, n_best_to_return)
 
@@ -378,10 +402,14 @@ def main(
         simulations_per_indiv: int, 
         len_individual: int,
         mutation_copies: int,
-        n_best_to_return: int,
+        n_best_to_return: Optional[int],
         food_weight: float,
         debug: bool = False,
         ):
+    
+    if n_best_to_return is None:
+        # return whole population
+        n_best_to_return = population_size
     
     # prepare logging file
     now = datetime.now()
@@ -451,9 +479,9 @@ if __name__ == "__main__":
     parser.add_argument('-s', '--simulations_per_indiv', default=6) # ideally use 8 or 16, depends on cores in cpu
     parser.add_argument('-l', '--len_individual', default=6)
     parser.add_argument('-f', '--food_weight', default=0.0) # TODO: decide on value, either 0 or 0.001
-    parser.add_argument('-t', '--mutation_copies', default=2) # how many copies of each indiv before running mutations
+    parser.add_argument('-t', '--mutation_copies', default=3) # how many copies of each indiv before running mutations
     parser.add_argument('-r', '--random_seed', default=True)
-    parser.add_argument('-n', '--n_best_to_return', default=10)
+    parser.add_argument('-n', '--n_best_to_return', default=None)
     parser.add_argument('-d', '--debug', default=True)
     args = parser.parse_args()
 
