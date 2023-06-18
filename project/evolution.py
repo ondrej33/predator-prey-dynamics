@@ -394,6 +394,64 @@ def evolution(
     return get_n_fittest_individuals(population_with_fitness, n_best_to_return)
 
 
+def evolution_resumed(
+    mutation_prob: float,
+    crossover_prob: float,
+    population_size: int,
+    generations_max: int,
+    simulations_per_indiv: int,
+    len_individual: int,
+    mutation_copies: int,
+    tournament_k: int,
+    start_time: float,
+    n_best_to_return: int,
+    food_weight: float,
+    log_file,
+    debug: bool = False,
+) ->  list[tuple[Individual, float]]:
+    """
+    TODO: STILL IN MAKING
+    Resume the evolution from the last point saved in the log.
+    USE WITH CAUTION -- does not check if same parameters are used, uses the ones provided here
+    USE WITH CAUTION v2 -- whole population must be printed in the end
+    """
+
+    # TODO parse the best population
+    population_with_fitness = None
+
+    # TODO parse the iteration
+    iteration = 0
+    while iteration < generations_max:
+        iteration += 1
+
+        # select parents from the population
+        selected_parents = selection_step(population_with_fitness, tournament_k)
+
+        # generate new offspring set (do the crossovers and mutations)
+        generated_offsprings = reproduction_step(selected_parents, mutation_prob, crossover_prob, mutation_copies)
+
+        # evaluate fitness of the offspring population
+        offsprings_with_fitness = eval_population(generated_offsprings, simulations_per_indiv, food_weight)
+
+        if debug:
+            for i in sorted(population_with_fitness, key=lambda x: x[1]):
+                log(log_file, "p ", end="")
+                log_individual_with_fitness(i, log_file)
+            for i in sorted(offsprings_with_fitness, key=lambda x: x[1]):
+                log(log_file, "o ", end="")
+                log_individual_with_fitness(i, log_file)
+            log(log_file, "")
+
+        # create new population using the old and new populations
+        population_with_fitness = replacement_step(population_with_fitness, offsprings_with_fitness)
+ 
+        # get the best individual of the new population and log it
+        log_generation_info(iteration, time.time() - start_time, population_with_fitness, log_file)
+
+    # return the fittest individual
+    return get_n_fittest_individuals(population_with_fitness, n_best_to_return)
+
+
 def main(
         mutation_prob: float, 
         crossover_prob: float,
@@ -457,7 +515,22 @@ def main(
         )
     else:
         # TODO
-        pass
+        # resume the evolution from the log and continue
+        n_best_individuals = evolution_resumed(
+            mutation_prob, 
+            crossover_prob,
+            population_size, 
+            generations_max, 
+            simulations_per_indiv,
+            len_individual,
+            mutation_copies,
+            tournament_k,
+            start,
+            n_best_to_return,
+            food_weight,
+            log_file,
+            debug,
+        )
     
     # sum up the results
     end = time.time()
@@ -489,7 +562,7 @@ if __name__ == "__main__":
     parser.add_argument('-f', '--food_weight', default=0.0) # TODO: decide on value, either 0 or 0.001
     parser.add_argument('-k', '--mutation_copies', default=3) # how many copies of each indiv before running mutations
     parser.add_argument('-t', '--tournament_k', default=7)
-    parser.add_argument('-s', '--resume_from_log', default=None) # log file to continue computation at
+    parser.add_argument('-a', '--resume_from_log', default=None) # log file to continue computation at
     parser.add_argument('-r', '--random_seed', default=True)
     parser.add_argument('-n', '--n_best_to_return', default=None)
     parser.add_argument('-d', '--debug', default=True)
