@@ -335,6 +335,7 @@ def evolution(
     simulations_per_indiv: int,
     len_individual: int,
     mutation_copies: int,
+    tournament_k: int,
     start_time: float,
     n_best_to_return: int,
     food_weight: float,
@@ -342,7 +343,6 @@ def evolution(
     debug: bool = False,
 ) ->  list[tuple[Individual, float]]:
     """Run the whole evolution process."""
-    TOURNAMENT_K = 7 # for now, we'll use tournament selection, this may change?
 
     # generate the population and evaluate it
     population = generate_population(population_size, len_individual)
@@ -357,7 +357,7 @@ def evolution(
         iteration += 1
 
         # select parents from the population
-        selected_parents = selection_step(population_with_fitness, TOURNAMENT_K)
+        selected_parents = selection_step(population_with_fitness, tournament_k)
 
         # generate new offspring set (do the crossovers and mutations)
         generated_offsprings = reproduction_step(selected_parents, mutation_prob, crossover_prob, mutation_copies)
@@ -402,9 +402,11 @@ def main(
         simulations_per_indiv: int, 
         len_individual: int,
         mutation_copies: int,
+        tournament_k: int,
         n_best_to_return: Optional[int],
         food_weight: float,
         debug: bool = False,
+        resume_from_log: Optional[str] = None,
         ):
     
     if n_best_to_return is None:
@@ -435,21 +437,27 @@ def main(
 
     start = time.time()
 
-    # run the evolution
-    n_best_individuals = evolution(
-        mutation_prob, 
-        crossover_prob,
-        population_size, 
-        generations_max, 
-        simulations_per_indiv,
-        len_individual,
-        mutation_copies,
-        start,
-        n_best_to_return,
-        food_weight,
-        log_file,
-        debug,
-    )
+    n_best_individuals = None
+    if resume_from_log is None:
+        # run the evolution from the beginning
+        n_best_individuals = evolution(
+            mutation_prob, 
+            crossover_prob,
+            population_size, 
+            generations_max, 
+            simulations_per_indiv,
+            len_individual,
+            mutation_copies,
+            tournament_k,
+            start,
+            n_best_to_return,
+            food_weight,
+            log_file,
+            debug,
+        )
+    else:
+        # TODO
+        pass
     
     # sum up the results
     end = time.time()
@@ -479,7 +487,9 @@ if __name__ == "__main__":
     parser.add_argument('-s', '--simulations_per_indiv', default=6) # ideally use 8 or 16, depends on cores in cpu
     parser.add_argument('-l', '--len_individual', default=6)
     parser.add_argument('-f', '--food_weight', default=0.0) # TODO: decide on value, either 0 or 0.001
-    parser.add_argument('-t', '--mutation_copies', default=3) # how many copies of each indiv before running mutations
+    parser.add_argument('-k', '--mutation_copies', default=3) # how many copies of each indiv before running mutations
+    parser.add_argument('-t', '--tournament_k', default=7)
+    parser.add_argument('-s', '--resume_from_log', default=None) # log file to continue computation at
     parser.add_argument('-r', '--random_seed', default=True)
     parser.add_argument('-n', '--n_best_to_return', default=None)
     parser.add_argument('-d', '--debug', default=True)
@@ -498,7 +508,9 @@ if __name__ == "__main__":
         args.simulations_per_indiv,
         args.len_individual,
         args.mutation_copies,
+        args.tournament_k,
         args.n_best_to_return,
         args.food_weight,
         args.debug,
+        args.resume_from_log,
     )
