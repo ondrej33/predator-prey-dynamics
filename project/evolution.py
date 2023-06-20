@@ -43,11 +43,11 @@ def generate_population(
     return [generate_individual(individual_len) for _ in range(num_population)]
 
 
-def get_simulation_result(individual: Individual) -> tuple[int, int]:
+def get_simulation_result(individual: Individual, binary_filepath: str) -> tuple[int, int]:
     """Run the simulation with individual's parameters as arguments"""
     
     output = subprocess.run([
-        './cpp_simulation', 
+        f'./{binary_filepath}', 
         '--debug', 'false',
         "--fish-momentum", str(individual[0]),
         "--alignment", str(individual[1]),
@@ -65,7 +65,8 @@ def get_simulation_result(individual: Individual) -> tuple[int, int]:
 def eval_individual(
         individual: Individual, 
         simulations_per_indiv: int,
-        food_weight: float
+        food_weight: float,
+        binary_filepath: str
         ) -> float:
     """
     Evaluate fitness of a `individual`.
@@ -74,7 +75,7 @@ def eval_individual(
     """
     # run all simulations in parallel
     with Pool(simulations_per_indiv) as pool:
-        async_results = [pool.apply_async(get_simulation_result, args=([individual])) for _ in range(simulations_per_indiv)]
+        async_results = [pool.apply_async(get_simulation_result, args=([individual, binary_filepath])) for _ in range(simulations_per_indiv)]
         result_tuples = [ar.get() for ar in async_results]
         # results are pairs of <fish_dead, food_eaten>, combine them to get one number
         aggregated_results = [res_tuple[0] - food_weight * res_tuple[1] for res_tuple in result_tuples]
@@ -84,10 +85,11 @@ def eval_individual(
 def eval_population(
         population: list[Individual], 
         simulations_per_indiv: int,
-        food_weight: float
+        food_weight: float,
+        binary_filepath: str
         ) -> list[tuple[Individual, float]]:
     """Evaluate fitness of whole population, return list of tuples <individual, fitness>."""
-    return [(indiv, eval_individual(indiv, simulations_per_indiv, food_weight)) for indiv in population]
+    return [(indiv, eval_individual(indiv, simulations_per_indiv, food_weight, binary_filepath)) for indiv in population]
 
 
 def get_fittest_individual(
@@ -341,12 +343,13 @@ def evolution(
     food_weight: float,
     log_file,
     debug: bool = False,
+    binary_filepath: str = "./cpp_simulation"
 ) ->  list[tuple[Individual, float]]:
     """Run the whole evolution process."""
 
     # generate the population and evaluate it
     population = generate_population(population_size, len_individual)
-    population_with_fitness = eval_population(population, simulations_per_indiv, food_weight)
+    population_with_fitness = eval_population(population, simulations_per_indiv, food_weight, binary_filepath)
     # get the best individual of the new population and log it
     log_generation_info(0, time.time() - start_time, population_with_fitness, log_file)
 
@@ -363,7 +366,7 @@ def evolution(
         generated_offsprings = reproduction_step(selected_parents, mutation_prob, crossover_prob, mutation_copies)
 
         # evaluate fitness of the offspring population
-        offsprings_with_fitness = eval_population(generated_offsprings, simulations_per_indiv, food_weight)
+        offsprings_with_fitness = eval_population(generated_offsprings, simulations_per_indiv, food_weight, binary_filepath)
 
         if debug:
             for i in sorted(population_with_fitness, key=lambda x: x[1]):
@@ -408,6 +411,7 @@ def evolution_resumed(
     food_weight: float,
     log_file,
     debug: bool = False,
+    binary_filepath: str = "./cpp_simulation"
 ) ->  list[tuple[Individual, float]]:
     """
     TODO: STILL IN MAKING
@@ -431,7 +435,7 @@ def evolution_resumed(
         generated_offsprings = reproduction_step(selected_parents, mutation_prob, crossover_prob, mutation_copies)
 
         # evaluate fitness of the offspring population
-        offsprings_with_fitness = eval_population(generated_offsprings, simulations_per_indiv, food_weight)
+        offsprings_with_fitness = eval_population(generated_offsprings, simulations_per_indiv, food_weight, binary_filepath)
 
         if debug:
             for i in sorted(population_with_fitness, key=lambda x: x[1]):
@@ -465,6 +469,7 @@ def main(
         food_weight: float,
         debug: bool = False,
         resume_from_log: Optional[str] = None,
+        binary_filepath: str = "./cpp_simulation"
         ):
     
     if n_best_to_return is None:
@@ -483,7 +488,7 @@ def main(
 
         log(log_file, "Default simulation parameters:")
         output = subprocess.run([
-            './cpp_simulation', 
+            f'./{binary_filepath}', 
             '--debug', 'true',
             '--log-filepath', f"logs/log-default-simulation_{formatted_now}.txt"
         ], stdout=subprocess.PIPE)
@@ -512,6 +517,7 @@ def main(
             food_weight,
             log_file,
             debug,
+            binary_filepath,
         )
     else:
         # TODO
@@ -530,6 +536,7 @@ def main(
             food_weight,
             log_file,
             debug,
+            binary_filepath,
         )
     
     # sum up the results
@@ -566,6 +573,7 @@ if __name__ == "__main__":
     parser.add_argument('-r', '--random_seed', default=True)
     parser.add_argument('-n', '--n_best_to_return', default=None)
     parser.add_argument('-d', '--debug', default=True)
+    parser.add_argument('-b', '--binary_filepath', default="./cpp_simulation")
     args = parser.parse_args()
 
     if args.random_seed:
@@ -586,4 +594,5 @@ if __name__ == "__main__":
         args.food_weight,
         args.debug,
         args.resume_from_log,
+        args.binary_filepath
     )
