@@ -8,12 +8,19 @@
 
 This repository contains all code, results and instructions regarding the project.
 
-Code consists mainly of:
+Our code consists mainly of:
 - simulation - `main.cpp`
 - evolution - `evolution.py`
-- visualization - `visualize.js` and `index.html`
+- visualization - `visualize.js`, `index.html`, `style.css`
 
+To make running installation and running easier, we provide:
+- `Makefile` and `CMakeLists.txt` for the simulation compiling (see next section)
+- simulation binary pre-compiled for Linux (Ubuntu-20.0 WSL)
+- log `output.json` of the simulation that can be used to run the visualization directly
 
+Our results are present in `results` directory.
+Each set of experiments has its own subfolder with all the evolution logs, sometimes even overviews.
+The directory also contains some of the visualizations.
 
 # Installation and running
 
@@ -33,7 +40,7 @@ Following command then builds and runs the simulation.
 make && ./cpp_simulation
 ```
 
-You can also run the program with various arguments. Explore them like this :
+You can also run the program with various arguments. Explore them like this:
 ```
 ./cpp_simulation --help
 ```
