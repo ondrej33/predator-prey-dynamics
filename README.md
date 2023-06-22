@@ -20,7 +20,8 @@ To make running installation and running easier, we provide:
 
 Our results are present in `results` directory.
 Each set of experiments has its own subfolder with all the evolution logs, sometimes even overviews.
-The directory also contains some of the visualizations.
+The directory also contains several GIF animations of various strategies in `animations` subfolder.
+
 
 # Installation and running
 
