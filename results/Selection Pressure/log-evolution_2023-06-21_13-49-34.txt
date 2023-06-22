@@ -1,0 +1,37 @@
+Evolution parameters:
+Namespace(mutation_prob=0.5, crossover_prob=0.6, population_size=20, generations_max=20, simulations_per_indiv=6, len_individual=6, food_weight=0.0, mutation_copies=3, tournament_k=2, resume_from_log=None, random_seed=True, n_best_to_return=None, debug=True)
+
+Default simulation parameters:
+>FISH_MOMENTUM_CONSTANT: 0.75
+>FISH_FEAR_MOMENTUM_CONSTANT: 0.825
+>ALIGNMENT_CONSTANT: 0.25
+>COHESION_CONSTANT: 0.05
+>SEPARATION_CONSTANT: 20
+>SHARK_REPULSION_CONSTANT: 8
+>FOOD_ATTRACTION_CONSTANT: 0.25
+>WIDTH: 400
+>HEIGHT: 400
+>NUM_STEPS: 1000
+>NUM_FISH: 400
+>NUM_SHARKS: 1
+>NUM_FOOD: 50
+>FISH_SENSE_DIST: 25
+>SHARK_SENSE_DIST: 100
+>FISH_MAX_SPEED: 4
+>SHARK_MAX_SPEED: 7
+>SHARK_KILL_RADIUS: 10
+>SHARK_MOMENTUM_CONSTANT: 1
+>SHARK_SEARCH_CONSTANT: 2
+>SHARK_HUNT_CONSTANT: 40
+>FISH_DIM_ELLIPSE_X: 5
+>FISH_DIM_ELLIPSE_Y: 9
+>FISH_FEAR_CONSTANT: 3
+>SHARK_DIM_ELLIPSE_X: 30
+>SHARK_DIM_ELLIPSE_Y: 50
+>SHARK_BLIND_ANGLE_DEG: 40
+>WALL: 0
+>LOG_FILEPATH: logs/log-default-simulation_2023-06-21_13-49-34.txt
+
+Starting computation at 2023-06-21 13:49:37.
+
+GEN 0, TIME 42.25, PARAMS: [ 0.34473, 5.79618, 2.34002, 0.92768, 5.13361, 0.16500, ], SCORE: 235.50
