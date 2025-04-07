@@ -33,7 +33,6 @@ def generate_individual(individual_len: int) -> Individual:
     return indiv
 
 
-
 def generate_population(
         num_population: int, 
         individual_len: int,
@@ -46,7 +45,7 @@ def get_simulation_result(individual: Individual) -> tuple[int, int]:
     """Run the simulation with individual's parameters as arguments"""
     
     output = subprocess.run([
-        './cpp_simulation', 
+        './simulation-cpp/cpp_simulation', 
         '--debug', 'false',
         "--fish-momentum", str(individual[0]),
         "--alignment", str(individual[1]),
@@ -431,7 +430,7 @@ def main(
 
         log(log_file, "Default simulation parameters:")
         output = subprocess.run([
-            './cpp_simulation', 
+            './simulation-cpp/cpp_simulation', 
             '--debug', 'true',
             '--log-filepath', f"logs/log-default-simulation_{formatted_now}.txt"
         ], stdout=subprocess.PIPE)
@@ -482,8 +481,8 @@ if __name__ == "__main__":
     # parse CLI arguments
 
     parser = argparse.ArgumentParser(
-        prog='Natural computing, project',
-        description='Runs algorithm for evolution of fish swarms',
+        prog='Fish swarm evolution',
+        description='Runs algorithm for evolution of fish swarms in predatory environment',
     )
 
     # algorithm parameters (all tunable, but with default values)
